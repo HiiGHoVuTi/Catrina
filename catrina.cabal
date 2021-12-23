@@ -38,6 +38,7 @@ executable catrina
     build-depends:    base ^>=4.14.1.0
                     , text
                     , parsec
+                    , pretty-simple
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options:      -Wall

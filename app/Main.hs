@@ -1,4 +1,14 @@
 module Main where
 
+import Data.Text
+import Debug.Pretty.Simple
+import Syntax.Program
+import System.IO
+import Text.Parsec
+
 main :: IO ()
-main = putStrLn "Hello, Catrina"
+main = openFile "samples" ReadMode
+   >>= hGetContents
+   >>= pTraceShowM . parse program "" . pack
+
+   
