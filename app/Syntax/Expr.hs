@@ -19,24 +19,34 @@ data Expr = Composition [Expr]
           | IntLiteral   Integer
           | FloatLiteral Double
         -- NOTE(Maxime): String literals are a bit more complicated
-        -- UnaryExpression OperatorToken Expr
+          | UnaryExpression OperatorToken Expr
         -- | Cone [(Text, Expr)]
         -- | Cocone [(Text, Expr)]
           | BinaryExpression OperatorToken Expr Expr
   deriving (Show)
 
--- FIXME(Maxime): types
+-- FIXME(Maxime): Allow any op but still keep precedence
+binary :: String -> (a -> a -> a) -> Assoc -> Operator Text () Identity a
 binary  name fun = Infix   $ reservedOp lexer name $> fun
+prefix, postfix :: String -> (a -> a) -> Operator Text () Identity a
 prefix  name fun = Prefix  $ reservedOp lexer name $> fun
 postfix name fun = Postfix $ reservedOp lexer name $> fun
+
+otherPrefix :: String -> Operator Text () Identity Expr
+otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))
+
+otherSuffix :: String -> Operator Text () Identity Expr
+otherSuffix name = postfix name (UnaryExpression (OtherOp $ pack name))
 
 otherBinop :: String -> Assoc -> Operator Text () Identity Expr
 otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
-  [ [otherBinop "*" AssocLeft, otherBinop "/" AssocLeft]
-  , [otherBinop "+" AssocLeft, otherBinop "-" AssocLeft]
+  [ [otherSuffix "."          , otherPrefix "."] -- FIXME
+  , [otherPrefix "-"]
+  , [otherBinop  "*" AssocLeft, otherBinop  "/" AssocLeft]
+  , [otherBinop  "+" AssocLeft, otherBinop  "-" AssocLeft]
   ]
 
 -- NOTE(Maxime): operators have highest precedence, unsure about how good it is
@@ -46,13 +56,13 @@ composing = fmap Composition . many1
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier lexer)
       <|> FloatLiteral          <$> try (float      lexer)
-      <|> IntLiteral            <$> try (integer    lexer)
+      <|> IntLiteral            <$> try (natural    lexer)
       <?> "literal"
 
 operation :: Parser Expr
 operation = buildExpressionParser operatorsTable
-          $  parens lexer expr
-         <|> composing literal
+          $  try (parens lexer expr)
+         <|> try (composing literal)
 
 expr :: Parser Expr
 expr  =  composing
