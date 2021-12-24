@@ -49,7 +49,6 @@ operatorsTable =
   , [otherBinop  "+" AssocLeft, otherBinop  "-" AssocLeft]
   ]
 
--- NOTE(Maxime): operators have highest precedence, unsure about how good it is
 composing :: Parser Expr -> Parser Expr
 composing = fmap Composition . many1
 
