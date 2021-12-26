@@ -1,14 +1,20 @@
 module Main where
 
+import Data.Functor
 import Data.Text
 import Debug.Pretty.Simple
-import Syntax.Program
+import Interpreter.Expr
+import Syntax.Expr
+import Syntax.Type
 import System.IO
 import Text.Parsec
 
 main :: IO ()
 main = openFile "samples" ReadMode
    >>= hGetContents
-   >>= pTraceShowM . parse program "" . pack
+   <&> parse expr "" . pack
+   -- <&> fmap (flip (evalExpr []) VUnit)
+   >>= pTraceShowM
 
-   
+evaluateExpr :: String -> Either ParseError Value
+evaluateExpr = fmap (flip (evalExpr []) VUnit) . parse expr "" . pack

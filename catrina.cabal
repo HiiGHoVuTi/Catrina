@@ -28,10 +28,23 @@ executable rina
                     , Parsing.LangDef
                     , Parsing.Names
                     , Parsing.Lexer
+                    , Parsing.Operators
                     --
                     , Syntax
                     , Syntax.Expr
+                    , Syntax.Type
                     , Syntax.Program
+                    --
+                    , Types
+                    , Types.Category
+                    , Types.Categories.Base
+                    --
+                    , Interpreter
+                    , Interpreter.Value
+                    , Interpreter.Expr
+                    , Interpreter.BuiltIn
+                    , Interpreter.Std
+                    , Interpreter.Std.Numbers
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

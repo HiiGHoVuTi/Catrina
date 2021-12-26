@@ -2,7 +2,7 @@
 # Features
 
 ## Program Cycle
-- Lexing
+- Lexing ✅
 - Parsing
 - Semantic Analysis
 - Type Checking
@@ -19,14 +19,17 @@ All done for now ✅
 ## Parsing
 
 ### Expressions
+- Unit {=} ✅
 - Unary "."
 - Allow any valid operator
 - Still allow custom precedence, based on the operator's name
 - Cones & Cocones
 
 ### Type Expressions
-- Type arrow
+- Unit {:} ✅
+- Type arrow ✅
 - Functor application
+- Cones & Cocones
 
 ### Declarations
 - Object declarations
@@ -38,7 +41,9 @@ Nothing yet
 
 ## Type Checking
 
-Nothing yet
+- Define Category
+- Define Base
+  - Actually defined a set of built-ins ✅
 
 ## Optimisation Loop
 
@@ -50,7 +55,7 @@ Nothing yet
 
 ## Interpreter Setup
 
-- "Scope", TypeContexts
+- "Scope", TypeContexts ✅
 - Thunk creation
 
 ## Optim Loop (JS)
@@ -63,5 +68,8 @@ Nothing yet
 
 ## Execution (interp)
 
-- Arithmetic expression evaluation
+- Composition ✅
+- Arithmetic expression evaluation ✅
+- Cones
+- Cocones
 

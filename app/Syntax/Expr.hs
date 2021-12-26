@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Syntax.Expr (
-  Expr, expr
+  Expr(..), expr,
+  OperatorToken(..)
                    ) where
-import Data.Functor
+
 import Data.Functor.Identity
 import Data.Text hiding (reverse)
 import Parsing
+import Parsing.Operators
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Expr
@@ -14,7 +16,8 @@ import Text.Parsec.Expr
 newtype OperatorToken = OtherOp Text
   deriving Show
 
-data Expr = Composition [Expr]
+data Expr = Unit
+          | Composition [Expr]
           | Identifier   Text
           | IntLiteral   Integer
           | FloatLiteral Double
@@ -23,14 +26,8 @@ data Expr = Composition [Expr]
         -- | Cone [(Text, Expr)]
         -- | Cocone [(Text, Expr)]
           | BinaryExpression OperatorToken Expr Expr
+          | BuiltIn Text
   deriving (Show)
-
--- FIXME(Maxime): Allow any op but still keep precedence
-binary :: String -> (a -> a -> a) -> Assoc -> Operator Text () Identity a
-binary  name fun = Infix   $ reservedOp lexer name $> fun
-prefix, postfix :: String -> (a -> a) -> Operator Text () Identity a
-prefix  name fun = Prefix  $ reservedOp lexer name $> fun
-postfix name fun = Postfix $ reservedOp lexer name $> fun
 
 otherPrefix :: String -> Operator Text () Identity Expr
 otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))
@@ -41,6 +38,8 @@ otherSuffix name = postfix name (UnaryExpression (OtherOp $ pack name))
 otherBinop :: String -> Assoc -> Operator Text () Identity Expr
 otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 
+
+-- FIXME(Maxime): Allow any op but still keep precedence
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
   [ [otherSuffix "."          , otherPrefix "."] -- FIXME
@@ -49,8 +48,15 @@ operatorsTable =
   , [otherBinop  "+" AssocLeft, otherBinop  "-" AssocLeft]
   ]
 
-composing :: Parser Expr -> Parser Expr
-composing = fmap Composition . many1
+
+unit' :: Parser Expr
+unit' = Unit <$ braces lexer (symbol lexer "")
+
+term :: Parser Expr
+term =  fmap Composition . many
+     $  try (parens lexer expr)
+    <|> try unit'
+    <|> try literal
 
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier lexer)
@@ -59,14 +65,10 @@ literal = Identifier   . pack   <$> try (identifier lexer)
       <?> "literal"
 
 operation :: Parser Expr
-operation = buildExpressionParser operatorsTable
-          $  try (parens lexer expr)
-         <|> try (composing literal)
+operation = buildExpressionParser operatorsTable term
 
 expr :: Parser Expr
-expr  =  composing
-     (   try operation
-     <|> try literal
+expr  =  try operation
+     <|> try term
      <?> "expression"
-     )
 

@@ -4,4 +4,4 @@ module Parsing.Names (
 
 reservedNames', reservedOpNames' :: [String]
 reservedNames'   = []
-reservedOpNames' = [".", "@"]
+reservedOpNames' = [".", "@", "->"]
