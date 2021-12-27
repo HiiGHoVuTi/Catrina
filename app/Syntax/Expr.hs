@@ -23,7 +23,7 @@ data Expr = Unit
           | FloatLiteral Double
         -- NOTE(Maxime): String literals are a bit more complicated
           | UnaryExpression OperatorToken Expr
-        -- | Cone [(Text, Expr)]
+          | Cone [(Text, Expr)]
         -- | Cocone [(Text, Expr)]
           | BinaryExpression OperatorToken Expr Expr
           | BuiltIn Text
@@ -50,12 +50,22 @@ operatorsTable =
 
 
 unit' :: Parser Expr
-unit' = Unit <$ braces lexer (symbol lexer "")
+unit' = Unit <$ braces lexer (oneOf " =")
+    <?> "unit"
+
+-- NOTE(Maxime): { a = b, c = d }
+cone :: Parser Expr
+cone = fmap Cone . braces lexer . commaSep1 lexer $ do
+  name <- pack <$> identifier lexer
+  reservedOp lexer "="
+  value <- expr
+  pure (name, value)
 
 term :: Parser Expr
 term =  fmap Composition . many
      $  try (parens lexer expr)
     <|> try unit'
+    <|> try cone
     <|> try literal
 
 literal :: Parser Expr

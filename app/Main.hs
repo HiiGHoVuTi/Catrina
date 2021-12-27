@@ -4,6 +4,7 @@ import Data.Functor
 import Data.Text
 import Debug.Pretty.Simple
 import Interpreter.Expr
+import Interpreter.Value
 import Syntax.Expr
 import Syntax.Type
 import System.IO

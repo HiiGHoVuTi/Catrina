@@ -23,7 +23,7 @@ All done for now ✅
 - Unary "."
 - Allow any valid operator
 - Still allow custom precedence, based on the operator's name
-- Cones & Cocones
+- Cones ✅ & Cocones
 
 ### Type Expressions
 - Unit {:} ✅
@@ -70,6 +70,6 @@ Nothing yet
 
 - Composition ✅
 - Arithmetic expression evaluation ✅
-- Cones
+- Cones ✅
 - Cocones
 

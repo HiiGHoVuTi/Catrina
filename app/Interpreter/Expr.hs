@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Interpreter.Expr (
-  evalExpr, Value(..)
+  evalExpr
                         ) where
 
 -- FIXME(Maxime): implement laziness
 
-import Data.Text
+import Data.Text hiding (map)
 import Interpreter.BuiltIn
 import Syntax.Expr
 import Types.Category
@@ -41,7 +41,10 @@ evalExpr env expr' input =
     
     -- NOTE(Maxime): a b c $ x -> b c $ a $ x
     Composition (x:xs) -> evalExpr env (Composition xs) (evalExpr env x input)
-    
+ 
+    Cone mappings -> VCone $ flip map mappings $ \(name, x) -> 
+      (name, evalExpr env x input)
+
     BuiltIn name -> executeStd name input
 
 -- FIXME(Maxime): actually look at the scope

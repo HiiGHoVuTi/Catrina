@@ -20,7 +20,7 @@ data Type = TUnit
   deriving (Show)
 
 unit' :: Parser Type
-unit' = TUnit <$ braces lexer (symbol lexer "")
+unit' = TUnit <$ braces lexer (oneOf " :")
 
 literal :: Parser Type
 literal = TIdentifier . pack <$> try (identifier lexer)
