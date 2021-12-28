@@ -49,9 +49,8 @@ operatorsTable =
 
 
 unit' :: Parser Expr
-unit' = Unit <$ braces lexer (oneOf " =")
+unit' = Unit <$ braces lexer (oneOf "=" <|> pure '_') 
     <?> "unit"
-
 
 equalPair :: Parser (Text, Expr)
 equalPair = do
@@ -94,7 +93,7 @@ operation :: Parser Expr
 operation = buildExpressionParser operatorsTable term
 
 expr :: Parser Expr
-expr  =  try operation
-     <|> try term
-     <?> "expression"
+expr  = try operation
+    <|> try term
+    <?> "expression"
 

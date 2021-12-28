@@ -22,6 +22,7 @@ executeStd "*" = mult
 executeStd name
   | "." `T.isPrefixOf` name = unsafeGet   (T.tail name)
   | "." `T.isSuffixOf` name = makeVCocone (T.init name)
+  | "@" `T.isPrefixOf` name = analyse     (T.tail name)
   | otherwise               = const $ error 
                             $ T.unpack ("Can't find " `T.append` name)
 
@@ -39,3 +40,16 @@ unsafeGet name value  = error
 -- NOTE(Maxime): Yes the pointfree is useless ;)
 makeVCocone :: T.Text -> Value -> Value
 makeVCocone = (VCocone .) . (,)
+
+-- FIXME(Maxime): refactor
+analyse :: T.Text -> Value -> Value
+analyse name (VCone m) = let
+  (VCocone (field, _)) = unsafeLookup name m
+  newmap               = updateUnwrapCocone name m
+  in VCocone (field, VCone newmap)
+analyse name value     = error 
+                       $ "Attempting to use @" 
+                       <> T.unpack name 
+                       <> " on non-cone: \n" 
+                       <> show value
+

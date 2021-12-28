@@ -20,10 +20,10 @@ All done for now ✅
 
 ### Expressions
 - Unit {=} ✅
-- Unary "."
+- Unary "." ✅
 - Allow any valid operator
 - Still allow custom precedence, based on the operator's name
-- Cones ✅ & Cocones
+- Cones ✅ & Cocones ✅
 
 ### Type Expressions
 - Unit {:} ✅
@@ -71,5 +71,6 @@ Nothing yet
 - Composition ✅
 - Arithmetic expression evaluation ✅
 - Cones ✅
-- Cocones
+- Cocones ✅
+- . operators and @ operator ✅
 
