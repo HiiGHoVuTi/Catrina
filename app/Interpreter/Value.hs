@@ -3,13 +3,16 @@ module Interpreter.Value (
                          ) where
 
 import Data.Text
+import Syntax.Type
 
--- NOTE(Maxime): Sum and Product types
 data Value
   = VUnit
   | VInt Integer
   | VFloat Double
   | VCone [(Text, Value)]
+  | VCocone (Text, Value)
+  -- NOTE(Maxime): DT here we are
+  | VType Type
   deriving (Show)
 
 

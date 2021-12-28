@@ -7,6 +7,7 @@ module Interpreter.Expr (
 
 import Data.Text hiding (map)
 import Interpreter.BuiltIn
+import Interpreter.Util
 import Syntax.Expr
 import Types.Category
 
@@ -44,6 +45,13 @@ evalExpr env expr' input =
  
     Cone mappings -> VCone $ flip map mappings $ \(name, x) -> 
       (name, evalExpr env x input)
+
+    
+    -- NOTE(Maxime): can use unsafe due to typecheck
+    Cocone mappings -> let 
+      VCocone (name, value) = input
+      matched               = unsafeLookup name mappings
+     in evalExpr env matched value
 
     BuiltIn name -> executeStd name input
 

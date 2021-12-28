@@ -40,6 +40,7 @@ executable rina
                     , Types.Categories.Base
                     --
                     , Interpreter
+                    , Interpreter.Util
                     , Interpreter.Value
                     , Interpreter.Expr
                     , Interpreter.BuiltIn

@@ -6,6 +6,7 @@ module Interpreter.BuiltIn (
 
 import qualified Data.Text as T
 import Interpreter.Std
+import Interpreter.Util
 import Interpreter.Value
 
 executeStd :: T.Text -> Value -> Value
@@ -18,4 +19,23 @@ executeStd "-" = sub
 executeStd "*" = mult
 
 -- Rest
-executeStd name = const $ error $ T.unpack ("Can't find " `T.append` name)
+executeStd name
+  | "." `T.isPrefixOf` name = unsafeGet   (T.tail name)
+  | "." `T.isSuffixOf` name = makeVCocone (T.init name)
+  | otherwise               = const $ error 
+                            $ T.unpack ("Can't find " `T.append` name)
+
+
+-- NOTE(Maxime): error is mostly for debugging purposes
+-- as those would be caught by the typechecker
+unsafeGet :: T.Text -> Value -> Value
+unsafeGet v (VCone a) = unsafeLookup v a
+unsafeGet name value  = error 
+                      $ "Attempting to use ." 
+                      <> T.unpack name 
+                      <> " on non-cone: \n" 
+                      <> show value
+
+-- NOTE(Maxime): Yes the pointfree is useless ;)
+makeVCocone :: T.Text -> Value -> Value
+makeVCocone = (VCocone .) . (,)
