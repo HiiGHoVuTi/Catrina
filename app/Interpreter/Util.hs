@@ -1,24 +1,17 @@
 module Interpreter.Util (
-  unsafeLookup,
+  Env,
   updateUnwrapCocone
                         ) where
 
-import Data.Text
+import Data.Map
+import Data.Text hiding (empty)
 import Interpreter.Value
+import Types.Category
 
--- NOTE(Maxime): is only used safely due to typecheck
-unsafeLookup :: Eq label => label -> [(label, value)] -> value
-unsafeLookup _ []     = undefined
-unsafeLookup a (x:xs)
-  | fst x == a        = snd x
-  | otherwise         = unsafeLookup a xs
+type Env = Map Text Category
 
-
-updateUnwrapCocone :: Text -> [(Text, Value)] -> [(Text, Value)]
-updateUnwrapCocone _ [] = []
-updateUnwrapCocone toUnwrap ((name, value):xs)
-  | name == toUnwrap = (name, unwrap value) : updateUnwrapCocone toUnwrap xs
-  | otherwise        = (name, value)        : updateUnwrapCocone toUnwrap xs
+updateUnwrapCocone :: Text -> Map Text Value -> Map Text Value
+updateUnwrapCocone = adjust unwrap 
   where
     -- NOTE(Maxime): safe because of typecheck
     unwrap (VCocone (_, inside)) = inside

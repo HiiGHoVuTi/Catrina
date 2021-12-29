@@ -29,11 +29,11 @@ All done for now ✅
 - Unit {:} ✅
 - Type arrow ✅
 - Functor application
-- Cones & Cocones
+- Cones ✅ & Cocones ✅
 
 ### Declarations
-- Object declarations
-- Arrow declarations
+- Object declarations ✅
+- Arrow declarations ✅
 
 ## Semantic Analysis
 
@@ -42,7 +42,7 @@ Nothing yet
 ## Type Checking
 
 - Define Category
-- Define Base
+- Define Base ✅
   - Actually defined a set of built-ins ✅
 
 ## Optimisation Loop
@@ -73,4 +73,8 @@ Nothing yet
 - Cones ✅
 - Cocones ✅
 - . operators and @ operator ✅
+
+# General
+
+- Refactor [(t, v)] with maps ✅
 

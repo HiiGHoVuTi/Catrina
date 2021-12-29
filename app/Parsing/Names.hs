@@ -3,5 +3,5 @@ module Parsing.Names (
                      ) where
 
 reservedNames', reservedOpNames' :: [String]
-reservedNames'   = []
+reservedNames'   = ["ar", "ob"]
 reservedOpNames' = [".", "@", "->"]

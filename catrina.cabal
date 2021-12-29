@@ -31,8 +31,10 @@ executable rina
                     , Parsing.Operators
                     --
                     , Syntax
+                    , Syntax.Common
                     , Syntax.Expr
                     , Syntax.Type
+                    , Syntax.Declaration
                     , Syntax.Program
                     --
                     , Types
@@ -46,11 +48,14 @@ executable rina
                     , Interpreter.BuiltIn
                     , Interpreter.Std
                     , Interpreter.Std.Numbers
+                    , Interpreter.Declaration
+                    , Interpreter.Program
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base ^>=4.14.1.0
                     , text
+                    , containers
                     , parsec
                     , pretty-simple
     hs-source-dirs:   app

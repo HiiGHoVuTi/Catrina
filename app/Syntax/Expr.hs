@@ -6,9 +6,11 @@ module Syntax.Expr (
                    ) where
 
 import Data.Functor.Identity
+import qualified Data.Map as Map
 import Data.Text hiding (zip, reverse)
 import Parsing
 import Parsing.Operators
+import Syntax.Common
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Expr
@@ -23,8 +25,8 @@ data Expr = Unit
           | FloatLiteral Double
         -- FIXME(Maxime): String literals are a bit more complicated
           | UnaryExpression OperatorToken Expr
-          | Cone [(Text, Expr)]
-          | Cocone [(Text, Expr)]
+          | Cone (Map.Map Text Expr)
+          | Cocone (Map.Map Text Expr)
           | BinaryExpression OperatorToken Expr Expr
           | BuiltIn Text
   deriving (Show)
@@ -52,28 +54,16 @@ unit' :: Parser Expr
 unit' = Unit <$ braces lexer (oneOf "=" <|> pure '_') 
     <?> "unit"
 
-equalPair :: Parser (Text, Expr)
-equalPair = do
-  name <- pack <$> identifier lexer
-  reservedOp lexer "="
-  value <- expr
-  pure(name, value)
-
--- NOTE(Maxime): maybe replace _1, _2 by 1, 2
-tuple :: [Expr] -> [(Text, Expr)]
-tuple = zip [(pack . ("_" <>) . show) n | n <- [1 :: Integer ..]]
-
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
-cone = try (fmap  Cone          . braces lexer . commaSep1 lexer $ equalPair)
-   <|> try (fmap (Cone . tuple) . braces lexer . commaSep1 lexer $ expr)
+cone = try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair "=" expr)
+   <|> try (fmap (Cone . tuple)        . braces lexer . commaSep1 lexer $ expr)
    <?> "cone"
 
 cocone :: Parser Expr
-cocone = try (fmap  Cocone          . brackets lexer . commaSep1 lexer $ equalPair)
-     <|> try (fmap (Cocone . tuple) . brackets lexer . commaSep1 lexer $ expr)
+cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair "=" expr)
+     <|> try (fmap (Cocone . tuple)        . brackets lexer . commaSep1 lexer $ expr)
      <?> "cocone"
-
 
 term :: Parser Expr
 term =  fmap Composition . many
