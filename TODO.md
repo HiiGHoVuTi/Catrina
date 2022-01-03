@@ -34,6 +34,7 @@ All done for now ✅
 ### Declarations
 - Object declarations ✅
 - Arrow declarations ✅
+- Currying
 
 ## Semantic Analysis
 
@@ -70,11 +71,18 @@ Nothing yet
 
 - Composition ✅
 - Arithmetic expression evaluation ✅
+- Boolean logic 
+- Base Equality ✅ / Comparaison
 - Cones ✅
 - Cocones ✅
 - . operators and @ operator ✅
+- Functor ✅
+- `$` and `'` operators ✅
+- `:` operator
+- Currying
 
 # General
 
 - Refactor [(t, v)] with maps ✅
+- Refactor `.` and `@` to use `single`✅
 

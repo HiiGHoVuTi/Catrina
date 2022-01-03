@@ -11,12 +11,13 @@ import Data.Text hiding (zip, reverse)
 import Parsing
 import Parsing.Operators
 import Syntax.Common
+import Syntax.Type
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Expr
 
 newtype OperatorToken = OtherOp Text
-  deriving Show
+  deriving (Show, Eq)
 
 data Expr = Unit
           | Composition [Expr]
@@ -28,8 +29,13 @@ data Expr = Unit
           | Cone (Map.Map Text Expr)
           | Cocone (Map.Map Text Expr)
           | BinaryExpression OperatorToken Expr Expr
+          | FunctorApplication Type Expr
+          | ConeProperty Text
+          | CoconeConstructor Text
+          | ConeAnalysis Text
+          | TypeExpr Type
           | BuiltIn Text
-  deriving (Show)
+  deriving (Show, Eq)
 
 otherPrefix :: String -> Operator Text () Identity Expr
 otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))
@@ -44,9 +50,12 @@ otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 -- FIXME(Maxime): Allow any op but still keep precedence
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
-  [ [otherPrefix "-"]
-  , [otherBinop  "*" AssocLeft, otherBinop  "/" AssocLeft]
-  , [otherBinop  "+" AssocLeft, otherBinop  "-" AssocLeft]
+  [ [otherPrefix "'"]
+  , [otherPrefix "-"]
+  , [otherBinop  "*" AssocLeft , otherBinop  "/" AssocLeft]
+  , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
+  , [otherBinop  "$" AssocRight]
+  , [otherBinop "==" AssocLeft ]
   ]
 
 
@@ -65,12 +74,30 @@ cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ 
      <|> try (fmap (Cocone . tuple)        . brackets lexer . commaSep1 lexer $ expr)
      <?> "cocone"
 
+coneProperty :: Parser Expr
+coneProperty = fmap (ConeProperty . pack) $ oneOf "." *> identifier lexer
+
+coneAnalysis :: Parser Expr
+coneAnalysis = fmap (ConeAnalysis . pack) $ oneOf "@" *> identifier lexer
+
+coconeConstructor :: Parser Expr
+coconeConstructor = fmap (CoconeConstructor . pack) $ identifier lexer <* lexeme lexer (oneOf ".")
+
+functor :: Parser Expr
+functor = do
+  name <- identifier lexer
+  FunctorApplication (TIdentifier $ pack name) <$> angles lexer operation
+
 term :: Parser Expr
 term =  fmap Composition . many
-     $  try (parens lexer expr)
+     $  try functor
+    <|> try (parens lexer expr)
     <|> try unit'
     <|> try cone
     <|> try cocone
+    <|> try coneProperty
+    <|> try coconeConstructor
+    <|> coneAnalysis
     <|> try literal
 
 literal :: Parser Expr
@@ -82,8 +109,11 @@ literal = Identifier   . pack   <$> try (identifier lexer)
 operation :: Parser Expr
 operation = buildExpressionParser operatorsTable term
 
+typeExpr :: Parser Expr
+typeExpr = TypeExpr <$> try typeExpr'
+
 expr :: Parser Expr
-expr  = try operation
-    <|> try term
+expr  = try typeExpr
+    <|> try operation
     <?> "expression"
 

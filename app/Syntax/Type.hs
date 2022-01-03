@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Syntax.Type (
-  Type(..), typeDecl
+  Type(..), typeDecl,
+  typeExpr'
                    ) where
 
 
@@ -13,47 +14,63 @@ import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Token
 
-newtype OperatorToken = OtherOp Text
-  deriving Show
-
 data Type = TUnit
+          | TId
           | TIdentifier Text
           | TArrow Type Type
           | TCone (Map.Map Text Type)
           | TCocone (Map.Map Text Type)
-  deriving (Show)
+          | TFunctor Type Type
+  deriving (Show, Eq)
+
+id' :: Parser Type
+id' = TId <$ whiteSpace lexer
 
 unit' :: Parser Type
 unit' = TUnit <$ braces lexer (oneOf ":" <|> pure '_') 
 
-literal :: Parser Type
-literal = TIdentifier . pack <$> try (identifier lexer)
-      <?> "literal"
+tliteral :: Parser Type
+tliteral = TIdentifier . pack <$> try (identifier lexer)
+      <?> "type literal"
 
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Type
-cone = try (fmap (TCone . Map.fromList) . braces lexer . commaSep1 lexer $ pair ":" typeDecl)
-   <|> try (fmap (TCone . tuple)        . braces lexer . commaSep1 lexer $ typeDecl)
+cone = try (fmap (TCone . Map.fromList) . braces lexer . commaSep1 lexer $ pair ":" arg)
+   <|> try (fmap (TCone . tuple)        . braces lexer . commaSep1 lexer $ arg)
    <?> "cone"
 
 cocone :: Parser Type
-cocone = try (fmap (TCocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" typeDecl)
-     <|> try (fmap (TCocone . tuple)        . brackets lexer . commaSep1 lexer $ typeDecl)
+cocone = try (fmap (TCocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" arg)
+     <|> try (fmap (TCocone . tuple)        . brackets lexer . commaSep1 lexer $ arg)
      <?> "cocone"
 
+functor :: Parser Type
+functor = do
+  name <- identifier lexer
+  TFunctor (TIdentifier $ pack name) <$> angles lexer arg
+
+
+arg :: Parser Type
+arg = try typeDecl
+  <|> try id'
+
 term :: Parser Type
-term =  try literal
+term =  try functor
+    <|> try tliteral
     <|> try unit'
     <|> try cone
     <|> try cocone
-    <|> parens lexer typeDecl
+    <|> try (parens lexer typeDecl)
 
 arrow :: Parser Type
 arrow = buildExpressionParser [[binary "->" TArrow AssocRight]] term
 
+typeExpr' :: Parser Type
+typeExpr' = try cone <|> try cocone
+
 typeDecl :: Parser Type
 typeDecl =  try arrow
-        <|> try literal
+        <|> try tliteral
         <|> try unit'
 
 

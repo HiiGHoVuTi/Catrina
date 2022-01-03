@@ -47,6 +47,7 @@ executable rina
                     , Interpreter.Expr
                     , Interpreter.BuiltIn
                     , Interpreter.Std
+                    , Interpreter.Std.Boolean
                     , Interpreter.Std.Numbers
                     , Interpreter.Declaration
                     , Interpreter.Program

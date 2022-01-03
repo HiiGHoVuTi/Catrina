@@ -20,8 +20,8 @@ catrinaDef = emptyDef
   , commentEnd      = "-}"
   , commentLine     = "--"
   , nestedComments  = True
-  , identStart      = letter   <|> oneOf ".@"
-  , identLetter     = alphaNum <|> oneOf "_'.?"
+  , identStart      = letter   -- <|> oneOf ".@"
+  , identLetter     = alphaNum <|> oneOf "'_" -- <|> oneOf "_'.?"
   , opStart         = oneOf ":!#$%&*+/<=>?\\^|" 
   , opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~" 
   , reservedOpNames = reservedOpNames'

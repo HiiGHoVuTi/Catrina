@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Types.Categories.Base (
-  base
+  base, catO'Cats
                              ) where
 
 import Data.Map
@@ -17,3 +17,13 @@ base = Category
   , compose = (TUnit, Unit)
   }
 
+
+catO'Cats :: Category
+catO'Cats = Category
+  { objects = fromList 
+    [ ("Cat" , TIdentifier "Cat")
+    , ("Base", TIdentifier "Base")
+    ]
+  , arrows  = empty -- NOTE(Maxime): add some built-ins
+  , compose = (TUnit, Unit)
+  }
