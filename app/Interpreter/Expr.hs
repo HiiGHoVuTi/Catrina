@@ -30,8 +30,18 @@ evalExpr env expr' input =
       (getFunction env name)    -- NOTE(Maxime): Unaries are just functions 
       (evalExpr env opr input)  -- NOTE(Maxime): Evaluate the input to it
     
+    -- NOTE(Maxime): Those have to be written here because of evalExpr
     BinaryExpression (OtherOp "$") a b ->
-       evalExpr env (unwrapVExpr $ evalExpr env a input) (evalExpr env b input)
+      evalExpr env (unwrapVExpr $ evalExpr env a input) (evalExpr env b input)
+
+    BinaryExpression (OtherOp ":") a b ->
+      evalExpr env (Composition 
+        [ Cone $ Map.fromList
+                   [ ("head", a)
+                   , ("tail", b)
+                   ]
+        , CoconeConstructor "cons"
+        ]) input
 
     -- NOTE(Maxime): (a + b) f --> f a + f b --> { f a, f b } (+)
     BinaryExpression (OtherOp name) lhs rhs -> 

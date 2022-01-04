@@ -78,7 +78,7 @@ Nothing yet
 - . operators and @ operator ✅
 - Functor ✅
 - `$` and `'` operators ✅
-- `:` operator
+- `:` operator ✅
 - Currying
 
 # General

@@ -54,6 +54,7 @@ operatorsTable =
   , [otherPrefix "-"]
   , [otherBinop  "*" AssocLeft , otherBinop  "/" AssocLeft]
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
+  , [otherBinop  ":" AssocRight]
   , [otherBinop  "$" AssocRight]
   , [otherBinop "==" AssocLeft ]
   ]
