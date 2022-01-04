@@ -3,7 +3,7 @@ module Interpreter.Expr (
   evalExpr
                         ) where
 
--- FIXME(Maxime): implement laziness
+-- NOTE(Maxime): implement thunks ?
 
 import Data.List
 import qualified Data.Map as Map 
@@ -60,7 +60,7 @@ evalExpr env expr' input =
     -- NOTE(Maxime): a b c $ x -> b c $ a $ x
     Composition (x:xs) -> evalExpr env (Composition xs) (evalExpr env x input)
  
-    Cone mappings -> VCone . flip Map.map mappings $ \x -> 
+    Cone values -> VCone . flip Map.map values $ \x -> 
       evalExpr env x input
 
     -- NOTE(Maxime): can use unsafe due to typecheck
@@ -69,7 +69,6 @@ evalExpr env expr' input =
       matched               = mappings Map.! name
      in evalExpr env matched value
 
-    -- FIXME(Maxime): missing cases
     ConeProperty prop -> unsafeGet prop input
     CoconeConstructor name -> VCocone (name, input)
     ConeAnalysis prop -> analyse prop input
@@ -77,7 +76,6 @@ evalExpr env expr' input =
     TypeExpr type' -> VType type'
 
     FunctorApplication functor mappedExpr ->
-      -- NOTE(Maxime): extracting type expression, only possibility for functors
       case functor of
         TId -> evalExpr env mappedExpr input
         TUnit -> VUnit 
@@ -100,7 +98,7 @@ evalExpr env expr' input =
         TCocone typeMap -> let
             VCocone (prop, val) = input
             functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
-          in evalExpr env functor' val
+          in VCocone (prop, evalExpr env functor' val)
 
     BuiltIn name -> executeStd name input
 

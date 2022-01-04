@@ -83,6 +83,7 @@ Nothing yet
 
 # General
 
+- Debate whether Rina need currying
+
 - Refactor [(t, v)] with maps ✅
 - Refactor `.` and `@` to use `single`✅
-
