@@ -80,6 +80,7 @@ Nothing yet
 - `$` and `'` operators ✅
 - `:` operator ✅
 - Currying
+- Pretty printing results (lists and stuff)
 
 # General
 
