@@ -21,7 +21,7 @@ syntax match rinaKeyword "{ }"
 syntax match rinaNumber  "\v[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)"
 syntax match rinaBigName "[_A-Z][_a-zA-Z0-9]*"
 syntax match rinaIdent   "[_a-z][_a-zA-Z0-9]*"
-syntax match rinaBuiltin "\v\@[a-z][_a-zA-Z0-9]*"
+syntax match rinaBuiltin "\v\@[_a-z][_a-zA-Z0-9]*"
 syntax match rinaBuiltin "\.[_a-z][_a-zA-Z0-9]*"
 syntax match rinaBuiltin "[_a-z][_a-zA-Z0-9]*\."
 
