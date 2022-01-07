@@ -34,7 +34,7 @@ evalExpr env expr' input =
     BinaryExpression (OtherOp "$") a b ->
       evalExpr env (unwrapVExpr $ evalExpr env a input) (evalExpr env b input)
 
-    BinaryExpression (OtherOp ":") a b ->
+    BinaryExpression (OtherOp ":,") a b ->
       evalExpr env (Composition 
         [ Cone $ Map.fromList
                    [ ("head", a)
