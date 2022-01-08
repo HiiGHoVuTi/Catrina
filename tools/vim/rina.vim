@@ -18,6 +18,7 @@ syntax keyword rinaKeyword ar ob
 syntax match rinaKeyword "{=}" 
 syntax match rinaKeyword "{:}"
 syntax match rinaKeyword "{ }"
+syntax region rinaString start=/\v"/ skip=/\v\\./ end=/\v"/
 syntax match rinaNumber  "\v[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)"
 syntax match rinaBigName "[_A-Z][_a-zA-Z0-9]*"
 syntax match rinaIdent   "[_a-z][_a-zA-Z0-9]*"
@@ -43,6 +44,7 @@ highlight link rinaBigName    Special
 highlight link rinaIdent      Other
 highlight link rinaLabel      PreCondit
 highlight link rinaNumber     Number
+highlight link rinaString     Number
 highlight link rinaKeyword    Statement
 highlight link rinaOperator   Operator
 highlight link rinaBuiltin    Function
