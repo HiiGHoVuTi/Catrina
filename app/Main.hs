@@ -2,12 +2,12 @@
 
 module Main where
 
-import Control.Monad
-import Data.Map (empty)
+import Control.Monad.Trans
 import Data.Text hiding (unlines, empty, foldl, head)
 import Interpreter
 import Options.Applicative hiding (empty)
 import Syntax
+import System.Console.Haskeline
 import System.IO
 import Text.Parsec
 import Text.Pretty.Simple
@@ -29,14 +29,7 @@ data Command
 doTheThing :: Options -> IO ()
 
 -- FIXME(Maxime)
-doTheThing Options {optCommand = InterpretCommand{..}} = do {-
-   openFile interpretedFilename ReadMode
-   >>= hGetContents
-   <&> parse program "" . pack
-   <&> fmap interpretProgram 
-   <&> fmap pShowValue
-   >>= fmap putStrLn
-   -}
+doTheThing Options {optCommand = InterpretCommand{..}} = do
    fileContents <- openFile interpretedFilename ReadMode >>= hGetContents
    let 
     parsed = parse program "main" $ pack fileContents
@@ -58,20 +51,22 @@ doTheThing Options {optCommand = ReplCommand{..}} =  do
           pure $ foldl interpretDecl start . programDeclarations <$> program''
 
     repl env = do
-      input <- putStr "Rina> " >> hFlush stdout >> getLine
-      when (input /= ":q") $ do
-        let parsed = parse expr "repl" $ pack input
-            res    = flip (evalExpr env) VUnit <$> parsed
-        case res of
-          Left  err -> pPrint err >> repl env
-          Right out -> putStrLn (pShowValue out) >> repl env
+      input <- getInputLine "Rina> "
+      case input of
+        Nothing   -> pure ()
+        Just ":q" -> lift $ putStrLn "Thanks for using Rina ❤️"
+        Just i    -> do
+          let parsed = parse expr "repl" $ pack i
+              res    = flip (evalExpr env) VUnit <$> parsed
+          case res of
+            Left  err -> pPrint err >> repl env
+            Right out -> lift (putStrLn (pShowValue out)) >> repl env
 
-      when (input == ":q") $ putStrLn "Thanks for using Rina ❤️"
     in case load replFilename of
-         Nothing -> repl empty
+         Nothing -> runInputT defaultSettings (repl start)
          Just x  -> x >>= \case
                       Left  err -> pPrint err
-                      Right env -> repl env
+                      Right env -> runInputT defaultSettings (repl env)
 
 main :: IO ()
 main = execParser opts >>= doTheThing
