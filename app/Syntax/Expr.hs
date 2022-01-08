@@ -25,6 +25,8 @@ data Expr = Unit
           | IntLiteral   Integer
           | FloatLiteral Double
         -- FIXME(Maxime): String literals are a bit more complicated
+          | CharLiteral Char
+          | StringLiteral String
           | UnaryExpression OperatorToken Expr
           | Cone (Map.Map Text Expr)
           | Cocone (Map.Map Text Expr)
@@ -102,9 +104,11 @@ term =  fmap Composition . many
     <|> try literal
 
 literal :: Parser Expr
-literal = Identifier   . pack   <$> try (identifier lexer)
-      <|> FloatLiteral          <$> try (float      lexer)
-      <|> IntLiteral            <$> try (natural    lexer)
+literal = Identifier   . pack   <$> try (identifier    lexer)
+      <|> FloatLiteral          <$> try (float         lexer)
+      <|> IntLiteral            <$> try (natural       lexer)
+      <|> CharLiteral           <$> try (charLiteral   lexer)
+      <|> StringLiteral         <$> try (stringLiteral lexer)
       <?> "literal"
 
 operation :: Parser Expr

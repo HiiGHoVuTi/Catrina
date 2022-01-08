@@ -2,7 +2,7 @@ module Interpreter.Value (
   Value(..)
                          ) where
 
-import Prelude (Integer, Double, Show, Eq)
+import Prelude (Integer, Double, Char, Show, Eq)
 
 import Data.Map
 import Data.Text
@@ -14,6 +14,7 @@ data Value
   | VPlaceholder
   | VInt Integer
   | VFloat Double
+  | VShort Char
   | VCone (Map Text Value)
   | VCocone (Text, Value)
   -- NOTE(Maxime): DT here we are

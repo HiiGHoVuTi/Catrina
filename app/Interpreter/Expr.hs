@@ -7,7 +7,7 @@ module Interpreter.Expr (
 
 import Data.List
 import qualified Data.Map as Map 
-import Data.Text hiding (map, find)
+import Data.Text hiding (map, find, foldl, reverse)
 import Interpreter.BuiltIn
 import Interpreter.Util
 import Syntax.Expr
@@ -23,6 +23,13 @@ evalExpr env expr' input =
     IntLiteral num -> VInt num
     
     FloatLiteral num -> VFloat num
+
+    CharLiteral c -> VShort c
+
+    StringLiteral str -> let
+        toList a c = Cone $ Map.fromList [("head", CharLiteral c), ("tail", a)]
+        asList     = foldl toList (CoconeConstructor "empty") (reverse str)
+      in evalExpr env asList input
 
     UnaryExpression (OtherOp "'") liftedExpr -> VExpr liftedExpr
 

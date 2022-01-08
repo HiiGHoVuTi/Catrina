@@ -1,4 +1,6 @@
 
+{-# LANGUAGE OverloadedStrings #-}
+
 module Interpreter.PrettyShow (
   pShowValue
                               ) where
@@ -49,19 +51,32 @@ pShowValue VUnit                = "{=}"  #CUnit
 pShowValue VPlaceholder         = "%PH%" #Error
 pShowValue (VInt n)             = show n #Literal
 pShowValue (VFloat x)           = show x #Literal
+pShowValue (VShort c)           = show c #Literal
 pShowValue (VExpr x)            = "'" #Operator <> "( " #Parens <> pShowExpr x <> " )" #Parens
 pShowValue (VType t)            = pShowType t
 pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field
-pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue m <> " }" #Parens
+pShowValue (VCone m) 
+  | isString m                  = ("\"" <> renderString m <> "\"") #Literal
+  | otherwise                   = "{ " #Parens <> conv pShowValue m <> " }" #Parens
+  where 
+    isShort (Just (VShort _)) = True ; isShort _ = False
+    isString m'     = isShort (Map.lookup "head" m')
+    renderString m' = 
+      (\(VShort c) -> c) (m' Map.! "head") 
+      : case m' Map.! "tail" of
+          VCone m'' -> renderString m'' 
+          _         -> ""
 
 
 pShowExpr :: Expr -> String
-pShowExpr (Composition xs) = unwords . map pShowExpr $ xs
-pShowExpr Unit             = "{=}" #CUnit
-pShowExpr (Identifier i)   = unpack i #Normal
-pShowExpr (FloatLiteral x) = show x #Literal
-pShowExpr (IntLiteral n)   = show n #Literal
+pShowExpr (Composition xs)  = unwords . map pShowExpr $ xs
+pShowExpr Unit              = "{=}" #CUnit
+pShowExpr (Identifier i)    = unpack i #Normal
+pShowExpr (FloatLiteral x)  = show x #Literal
+pShowExpr (IntLiteral n)    = show n #Literal
+pShowExpr (StringLiteral s) = show s #Literal
+pShowExpr (CharLiteral c)   = show c #Literal
 pShowExpr (UnaryExpression (OtherOp op) e) = unpack op #Operator <> pShowExpr e
 pShowExpr (BinaryExpression (OtherOp op) e1 e2) = pShowExpr e1 <> " " <> unpack op #Operator <> " " <> pShowExpr e2
 pShowExpr (FunctorApplication t e) = pShowType t <> " < "#Parens <> pShowExpr e <> " >"#Parens
@@ -72,7 +87,6 @@ pShowExpr (TypeExpr t)          = pShowType t
 pShowExpr (BuiltIn t)           = unpack t
 pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr m <> " }" #Parens
 pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr m <> " ]" #Parens
-
 
 pShowType :: Type -> String
 pShowType TId   = ""

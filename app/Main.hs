@@ -3,7 +3,6 @@
 module Main where
 
 import Control.Monad
-import Data.Functor
 import Data.Map (empty)
 import Data.Text hiding (unlines, empty, foldl, head)
 import Interpreter
