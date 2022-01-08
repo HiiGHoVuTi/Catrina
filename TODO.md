@@ -18,6 +18,8 @@ All done for now ✅
 
 ## Parsing
 
+- Have parsing fail if the input is incorrect
+
 ### Expressions
 - Unit {=} ✅
 - Unary "." ✅
@@ -81,6 +83,11 @@ Nothing yet
 - `:` operator ✅
 - Currying
 - Pretty printing results (lists and stuff)
+
+## REPL
+- Arrow keys
+- :load
+- :r
 
 # General
 

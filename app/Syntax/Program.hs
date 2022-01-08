@@ -7,7 +7,7 @@ import Syntax.Declaration
 import Text.Parsec
 import Text.Parsec.Token
 
-newtype Program = Program [Declaration]
+newtype Program = Program { programDeclarations :: [Declaration] }
   deriving Show
 
 -- FIXME(Maxime): obviously a program isn't a single expression

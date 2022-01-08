@@ -1,25 +1,17 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, LambdaCase #-}
 
 module Main where
 
+import Control.Monad
 import Data.Functor
-import Data.Text hiding (unlines)
-import Debug.Pretty.Simple
-import Interpreter.Program
-import Options.Applicative
-import Syntax.Program
+import Data.Map (empty)
+import Data.Text hiding (unlines, empty, foldl, head)
+import Interpreter
+import Options.Applicative hiding (empty)
+import Syntax
 import System.IO
 import Text.Parsec
-
-{-
-main :: IO ()
-main = openFile "samples" ReadMode
-   >>= hGetContents
-   <&> parse program "" . pack
-   <&> pTraceShowId
-   <&> fmap interpretProgram 
-   >>= pTraceShowM
--}
+import Text.Pretty.Simple
 
 -- NOTE(Maxime): newtype is only here because linter is mad at me
 
@@ -27,21 +19,60 @@ newtype Options = Options
   { optCommand :: Command
   }
 
-newtype Command
+data Command
   = InterpretCommand
-    { filename :: String
+    { interpretedFilename :: String
+    }
+  | ReplCommand
+    { replFilename :: Maybe String
     }
 
-
 doTheThing :: Options -> IO ()
+
 -- FIXME(Maxime)
-doTheThing Options {..} = 
-   openFile (filename optCommand) ReadMode
+doTheThing Options {optCommand = InterpretCommand{..}} = do {-
+   openFile interpretedFilename ReadMode
    >>= hGetContents
    <&> parse program "" . pack
    <&> fmap interpretProgram 
-   >>= pTraceShowM
+   <&> fmap pShowValue
+   >>= fmap putStrLn
+   -}
+   fileContents <- openFile interpretedFilename ReadMode >>= hGetContents
+   let 
+    parsed = parse program "main" $ pack fileContents
+    in case parsed of
+         Left  err -> pPrint err
+         Right pog -> putStrLn . pShowValue 
+                   . interpretProgram 
+                   $ pog
 
+doTheThing Options {optCommand = ReplCommand{..}} =  do
+  let
+    load maybeName = do
+      fileName <- maybeName
+      let 
+        fileContents = openFile fileName ReadMode >>= hGetContents
+        program'     = parse program fileName . pack <$> fileContents
+        in Just $ do
+          program'' <- program'
+          pure $ foldl interpretDecl start . programDeclarations <$> program''
+
+    repl env = do
+      input <- putStr "Rina> " >> hFlush stdout >> getLine
+      when (input /= ":q") $ do
+        let parsed = parse expr "repl" $ pack input
+            res    = flip (evalExpr env) VUnit <$> parsed
+        case res of
+          Left  err -> pPrint err >> repl env
+          Right out -> putStrLn (pShowValue out) >> repl env
+
+      when (input == ":q") $ putStrLn "Thanks for using Rina ❤️"
+    in case load replFilename of
+         Nothing -> repl empty
+         Just x  -> x >>= \case
+                      Left  err -> pPrint err
+                      Right env -> repl env
 
 main :: IO ()
 main = execParser opts >>= doTheThing
@@ -57,11 +88,18 @@ main = execParser opts >>= doTheThing
     optsParser =
       Options <$> 
         subparser 
-           (command "interpret" (info interpretCommand (progDesc "interprets a file")))
+           (  command "interpret" (info interpretCommand (progDesc "interprets a file"))
+           <> command "repl"      (info replCommand      (progDesc "opens a repl")))
 
     interpretCommand = InterpretCommand <$> strArgument
       (  metavar "INPUT"
       <> help "The file to interpret"
+      )
+
+    replCommand = ReplCommand . Just <$> strOption
+      (  long "load"
+      <> metavar "INPUT"
+      <> help "A file to load into the REPL"
       )
 
 -- evaluateExpr :: String -> Either ParseError Value

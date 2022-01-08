@@ -51,6 +51,7 @@ executable rina
                     , Interpreter.Std.Numbers
                     , Interpreter.Declaration
                     , Interpreter.Program
+                    , Interpreter.PrettyShow
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

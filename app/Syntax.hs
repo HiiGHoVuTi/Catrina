@@ -1,5 +1,6 @@
 module Syntax (
-  program
+  program, programDeclarations, expr
               ) where
 
+import Syntax.Expr
 import Syntax.Program
