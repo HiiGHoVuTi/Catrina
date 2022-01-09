@@ -8,13 +8,14 @@ import Data.Map
 import Syntax.Expr
 import Syntax.Type
 import Types.Category
+import qualified Types.Category as Category
 
 base :: Category 
 base = Category
   { objects = empty
   , arrows  = empty
   -- NOTE(Maxime): Base can't be specified in the language
-  , compose = (TUnit, Unit)
+  , Category.compose = (TUnit, Unit)
   }
 
 
@@ -25,5 +26,5 @@ catO'Cats = Category
     , ("Base", TIdentifier "Base")
     ]
   , arrows  = empty -- NOTE(Maxime): add some built-ins
-  , compose = (TUnit, Unit)
+  , Category.compose = (TUnit, Unit)
   }

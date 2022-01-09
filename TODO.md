@@ -85,7 +85,7 @@ Nothing yet
 - Pretty printing results (lists and stuff)
 
 ## REPL
-- Arrow keys
+- Arrow keys ✅
 - :load
 - :r
 

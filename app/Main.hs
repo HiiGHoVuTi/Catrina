@@ -96,5 +96,3 @@ main = execParser opts >>= doTheThing
       <> help "A file to load into the REPL"
       )
 
--- evaluateExpr :: String -> Either ParseError Value
--- evaluateExpr = fmap (flip (evalExpr []) VUnit) . parse expr "" . pack
