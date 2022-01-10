@@ -49,6 +49,7 @@ executable rina
                     , Interpreter.Std
                     , Interpreter.Std.Boolean
                     , Interpreter.Std.Numbers
+                    , Interpreter.Std.Shell
                     , Interpreter.Declaration
                     , Interpreter.Program
                     , Interpreter.PrettyShow
@@ -62,6 +63,7 @@ executable rina
                     , transformers
                     , parsec
                     , pretty-simple
+                    , process
                     , optparse-applicative
                     , haskeline
     hs-source-dirs:   app

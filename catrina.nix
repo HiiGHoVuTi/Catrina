@@ -1,5 +1,6 @@
 { mkDerivation, base, containers, haskeline, lib, mtl
-, optparse-applicative, parsec, pretty-simple, text, transformers
+, optparse-applicative, parsec, pretty-simple, process, text
+, transformers
 }:
 mkDerivation {
   pname = "catrina";
@@ -9,7 +10,7 @@ mkDerivation {
   isExecutable = true;
   executableHaskellDepends = [
     base containers haskeline mtl optparse-applicative parsec
-    pretty-simple text transformers
+    pretty-simple process text transformers
   ];
   description = "Catrina (rina for short) is a categorical programming language";
   license = lib.licenses.gpl3Only;

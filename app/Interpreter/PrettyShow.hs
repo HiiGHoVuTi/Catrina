@@ -48,7 +48,7 @@ conv f = intercalate ", "
 
 pShowValue :: Value -> String
 pShowValue VUnit                = "{=}"  #CUnit
-pShowValue VPlaceholder         = "%PH%" #Error
+pShowValue VPlaceholder         = "Placeholder Error !" #Error
 pShowValue (VInt n)             = show n #Literal
 pShowValue (VFloat x)           = show x #Literal
 pShowValue (VShort c)           = show c #Literal

@@ -1,5 +1,5 @@
 module Interpreter (
-  interpretProgram, start, interpretDecl, evalExpr, Value(VUnit),
+  interpretProgram, start, interpretDecl, evalExpr, Value(VUnit, VPlaceholder),
   pShowValue, (#), Color(..)
                    ) where
 

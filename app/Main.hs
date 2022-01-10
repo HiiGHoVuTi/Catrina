@@ -2,19 +2,20 @@
 
 module Main where
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
 import Data.Text hiding (unlines, empty, foldl, head)
 import Interpreter
-import Options.Applicative hiding (empty)
+import Options.Applicative hiding (ParseError, empty)
 import Syntax
 import System.Console.Haskeline
 import System.IO
-import Text.Parsec
+import Text.Parsec hiding (try)
 import Text.Pretty.Simple
 
--- NOTE(Maxime): newtype is only here because linter is mad at me
 
+-- NOTE(Maxime): newtype is only here because linter is mad at me
 newtype Options = Options
   { optCommand :: Command
   }
@@ -58,10 +59,13 @@ doTheThing Options {optCommand = ReplCommand{..}} =  do
         Just ":q" -> lift $ putStrLn "Thanks for using Rina ❤️"
         Just i    -> do
           let parsed = parse expr "repl" $ pack i
-              res    = flip (evalExpr env) VUnit <$> parsed
+          -- FIXME(Maxime)
+          res <- lift $ 
+            sequenceA (flip (evalExpr env) VUnit <$> parsed)
+            `catch` (\x -> (const.pure.Right$ VPlaceholder) (x :: ErrorCall))
           case res of
             Left  err -> pPrint err >> repl env
-            Right out -> lift (putStrLn . pShowValue =<< out) >> repl env
+            Right out -> lift (putStrLn . pShowValue $ out) >> repl env
 
     in case load replFilename of
          Nothing -> runInputT defaultSettings (repl start)
