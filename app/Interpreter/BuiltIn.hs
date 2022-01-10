@@ -7,17 +7,17 @@ import qualified Data.Text as T
 import Interpreter.Std
 import Interpreter.Value
 
-executeStd :: T.Text -> Value -> Value
+executeStd :: T.Text -> Value -> IO Value
 -- Prelude
-executeStd "id" = id
+executeStd "id" = pure
 
-executeStd "==" = eq
-executeStd "/=" = neq
+executeStd "==" = pure.eq
+executeStd "/=" = pure.neq
 
 -- NumericPrelude
-executeStd "+" = add
-executeStd "-" = sub
-executeStd "*" = mult
+executeStd "+" = pure.add
+executeStd "-" = pure.sub
+executeStd "*" = pure.mult
 
 -- Rest
 -- FIXME(Maxime): actually use @@single c *> identifier@@

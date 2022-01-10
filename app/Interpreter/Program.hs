@@ -15,7 +15,7 @@ import Types.Categories.Base
 start :: Map Text Category
 start = fromList [("Base", base), ("Cat", catO'Cats)]
 
-interpretProgram :: Program -> Value
+interpretProgram :: Program -> IO Value
 interpretProgram (Program decls) = let
   scope     = foldl interpretDecl start decls
   (_, main) = arrows (scope ! "Base") ! "main"

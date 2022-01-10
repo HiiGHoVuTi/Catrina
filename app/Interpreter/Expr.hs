@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TupleSections #-}
 module Interpreter.Expr (
   evalExpr
                         ) where
@@ -14,32 +14,36 @@ import Syntax.Expr
 import Syntax.Type
 import Types.Category
 
-evalExpr :: Env -> Expr -> Value -> Value
-evalExpr _ expr' VPlaceholder = VExpr expr'
+evalExpr :: Env -> Expr -> Value -> IO Value
+evalExpr _ expr' VPlaceholder = pure (VExpr expr')
 evalExpr env expr' input = 
   case expr' of
-    Unit -> VUnit
+    Unit -> pure VUnit
     
-    IntLiteral num -> VInt num
+    IntLiteral num -> pure (VInt num)
     
-    FloatLiteral num -> VFloat num
+    FloatLiteral num -> pure (VFloat num)
 
-    CharLiteral c -> VShort c
+    CharLiteral c -> pure (VShort c)
 
     StringLiteral str -> let
         toList a c = Cone $ Map.fromList [("head", CharLiteral c), ("tail", a)]
         asList     = foldl toList (CoconeConstructor "empty") (reverse str)
       in evalExpr env asList input
 
-    UnaryExpression (OtherOp "'") liftedExpr -> VExpr liftedExpr
+    UnaryExpression (OtherOp "'") liftedExpr -> pure (VExpr liftedExpr)
 
     UnaryExpression (OtherOp name) opr -> evalExpr env 
       (getFunction env name)    -- NOTE(Maxime): Unaries are just functions 
-      (evalExpr env opr input)  -- NOTE(Maxime): Evaluate the input to it
+      =<<
+      evalExpr env opr input    -- NOTE(Maxime): Evaluate the input to it
     
     -- NOTE(Maxime): Those have to be written here because of evalExpr
-    BinaryExpression (OtherOp "$") a b ->
-      evalExpr env (unwrapVExpr $ evalExpr env a input) (evalExpr env b input)
+    BinaryExpression (OtherOp "$") a b -> do
+      lhs <- unwrapVExpr <$> evalExpr env a input
+      rhs <- evalExpr env b input
+      evalExpr env lhs rhs
+
 
     BinaryExpression (OtherOp ":,") a b ->
       evalExpr env (Composition 
@@ -53,8 +57,9 @@ evalExpr env expr' input =
     -- NOTE(Maxime): (a + b) f --> f a + f b --> { f a, f b } (+)
     BinaryExpression (OtherOp name) lhs rhs -> 
       evalExpr env 
-      (getFunction env name) 
-      (VCone $ Map.fromList 
+      (getFunction env name)  . VCone
+      =<<
+        sequenceA (Map.fromList 
         [ ("_1", evalExpr env lhs input)
         , ("_2", evalExpr env rhs input)
         ])
@@ -62,13 +67,12 @@ evalExpr env expr' input =
     Identifier name -> evalExpr env (getFunction env name) input
     
     -- NOTE(Maxime): Identity function
-    Composition [] -> input
+    Composition [] -> pure input
     
     -- NOTE(Maxime): a b c $ x -> b c $ a $ x
-    Composition (x:xs) -> evalExpr env (Composition xs) (evalExpr env x input)
+    Composition (x:xs) -> evalExpr env (Composition xs) =<< evalExpr env x input
  
-    Cone values -> VCone . flip Map.map values $ \x -> 
-      evalExpr env x input
+    Cone values -> VCone <$> sequenceA (Map.map (flip (evalExpr env) input) values)
 
     -- NOTE(Maxime): can use unsafe due to typecheck
     Cocone mappings -> let 
@@ -76,16 +80,16 @@ evalExpr env expr' input =
       matched               = mappings Map.! name
      in evalExpr env matched value
 
-    ConeProperty prop -> unsafeGet prop input
-    CoconeConstructor name -> VCocone (name, input)
-    ConeAnalysis prop -> analyse prop input
+    ConeProperty prop -> pure (unsafeGet prop input)
+    CoconeConstructor name -> pure (VCocone (name, input))
+    ConeAnalysis prop -> pure (analyse prop input)
 
-    TypeExpr type' -> VType type'
+    TypeExpr type' -> pure (VType type')
 
     FunctorApplication functor mappedExpr ->
       case functor of
         TId -> evalExpr env mappedExpr input
-        TUnit -> VUnit 
+        TUnit -> pure VUnit 
         -- NOTE(Maxime): lookup and replace in functor expression
         TIdentifier name' -> let
             fromType (TypeExpr a) = a
@@ -100,12 +104,12 @@ evalExpr env expr' input =
             VCone vcone = input
             combine v t = evalExpr env (FunctorApplication t mappedExpr) v
             distributed = Map.intersectionWith combine vcone typeMap
-           in VCone distributed
+           in VCone <$> sequenceA distributed
         
         TCocone typeMap -> let
             VCocone (prop, val) = input
             functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
-          in VCocone (prop, evalExpr env functor' val)
+          in VCocone . (prop, ) <$> evalExpr env functor' val
 
     BuiltIn name -> executeStd name input
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Interpreter.PrettyShow (
-  pShowValue
+  pShowValue, (#), Color(..)
                               ) where
 
 import Data.List

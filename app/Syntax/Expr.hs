@@ -78,13 +78,14 @@ cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ 
      <?> "cocone"
 
 coneProperty :: Parser Expr
-coneProperty = fmap (ConeProperty . pack) $ oneOf "." *> identifier lexer
+coneProperty = fmap (ConeProperty . pack) $ char '.' *> identifier lexer
 
 coneAnalysis :: Parser Expr
-coneAnalysis = fmap (ConeAnalysis . pack) $ oneOf "@" *> identifier lexer
+coneAnalysis = fmap (ConeAnalysis . pack) $ char '@' *> identifier lexer
 
+-- FIXME
 coconeConstructor :: Parser Expr
-coconeConstructor = fmap (CoconeConstructor . pack) $ identifier lexer <* lexeme lexer (oneOf ".")
+coconeConstructor = CoconeConstructor . pack <$> lexeme lexer (many1 letter <*  char '.')
 
 functor :: Parser Expr
 functor = do

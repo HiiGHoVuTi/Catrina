@@ -1,7 +1,8 @@
-{-# LANGUAGE RecordWildCards, LambdaCase #-}
+{-# LANGUAGE RecordWildCards, LambdaCase, BangPatterns #-}
 
 module Main where
 
+import Control.Monad
 import Control.Monad.Trans
 import Data.Text hiding (unlines, empty, foldl, head)
 import Interpreter
@@ -35,8 +36,8 @@ doTheThing Options {optCommand = InterpretCommand{..}} = do
     parsed = parse program "main" $ pack fileContents
     in case parsed of
          Left  err -> pPrint err
-         Right pog -> putStrLn . pShowValue 
-                   . interpretProgram 
+         Right pog ->  putStrLn . pShowValue 
+                   <=< interpretProgram 
                    $ pog
 
 doTheThing Options {optCommand = ReplCommand{..}} =  do
@@ -51,7 +52,7 @@ doTheThing Options {optCommand = ReplCommand{..}} =  do
           pure $ foldl interpretDecl start . programDeclarations <$> program''
 
     repl env = do
-      input <- getInputLine "Rina> "
+      input <- getInputLine $ "Rina" #Operator <> "> " #Parens
       case input of
         Nothing   -> pure ()
         Just ":q" -> lift $ putStrLn "Thanks for using Rina ❤️"
@@ -60,7 +61,7 @@ doTheThing Options {optCommand = ReplCommand{..}} =  do
               res    = flip (evalExpr env) VUnit <$> parsed
           case res of
             Left  err -> pPrint err >> repl env
-            Right out -> lift (putStrLn (pShowValue out)) >> repl env
+            Right out -> lift (putStrLn . pShowValue =<< out) >> repl env
 
     in case load replFilename of
          Nothing -> runInputT defaultSettings (repl start)

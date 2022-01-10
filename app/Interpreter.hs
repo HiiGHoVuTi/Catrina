@@ -1,6 +1,6 @@
 module Interpreter (
   interpretProgram, start, interpretDecl, evalExpr, Value(VUnit),
-  pShowValue
+  pShowValue, (#), Color(..)
                    ) where
 
 import Interpreter.Declaration
