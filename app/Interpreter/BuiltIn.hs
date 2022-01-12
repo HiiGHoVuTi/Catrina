@@ -10,7 +10,8 @@ import Interpreter.Value
 executeStd :: T.Text -> Value -> IO Value
 -- Prelude
 executeStd "id" = pure
-executeStd "shell" = shell
+executeStd "shell"  = shell
+executeStd "stdout" = stdout
 
 executeStd "==" = pure.eq
 executeStd "/=" = pure.neq
