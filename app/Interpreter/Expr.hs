@@ -27,7 +27,10 @@ evalExpr env expr' input =
     CharLiteral c -> pure (VShort c)
 
     StringLiteral str -> let
-        toList a c = Cone $ Map.fromList [("head", CharLiteral c), ("tail", a)]
+        toList a c = Composition 
+          [ Cone $ Map.fromList [("head", CharLiteral c), ("tail", a)]
+          , CoconeConstructor "cons" 
+          ]
         asList     = foldl toList (CoconeConstructor "empty") (reverse str)
       in evalExpr env asList input
 

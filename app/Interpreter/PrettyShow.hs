@@ -46,29 +46,28 @@ conv f = intercalate ", "
      . map (\(k, v) -> unpack k #Field <> " = " #Operator <> f v) 
      . Map.toList
 
+renderString :: Map.Map Text Value -> String
+renderString m' = 
+      (\(VShort c) -> c) (m' Map.! "head") 
+      : case m' Map.! "tail" of
+          VCocone ("cons", VCone m'') -> renderString m'' 
+          _                           -> ""
+
+
 pShowValue :: Value -> String
 pShowValue VUnit                = "{=}"  #CUnit
-pShowValue VPlaceholder         = "Placeholder Error !" #Error
+pShowValue VPlaceholder         = "Runtime Panic !" #Error
 pShowValue (VInt n)             = show n #Literal
 pShowValue (VFloat x)           = show x #Literal
 pShowValue (VShort c)           = show c #Literal
 pShowValue (VExpr x)            = "'" #Operator <> "( " #Parens <> pShowExpr x <> " )" #Parens
 pShowValue (VType t)            = pShowType t
 pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
+pShowValue (VCocone ("cons"
+           , VCone m))          = ("\"" <> renderString m <> "\"") #Literal
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field
-pShowValue (VCone m) 
-  | isString m                  = ("\"" <> renderString m <> "\"") #Literal
-  | otherwise                   = "{ " #Parens <> conv pShowValue m <> " }" #Parens
-  where 
-    isShort (Just (VShort _)) = True ; isShort _ = False
-    isString m'     = isShort (Map.lookup "head" m')
-    renderString m' = 
-      (\(VShort c) -> c) (m' Map.! "head") 
-      : case m' Map.! "tail" of
-          VCone m'' -> renderString m'' 
-          _         -> ""
-
-
+pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue m <> " }" #Parens
+ 
 pShowExpr :: Expr -> String
 pShowExpr (Composition xs)  = unwords . map pShowExpr $ xs
 pShowExpr Unit              = "{=}" #CUnit

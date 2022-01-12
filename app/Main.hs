@@ -2,6 +2,7 @@
 
 module Main where
 
+import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
@@ -11,7 +12,7 @@ import Options.Applicative hiding (ParseError, empty)
 import Syntax
 import System.Console.Haskeline
 import System.IO
-import Text.Parsec hiding (try)
+import Text.Parsec hiding (try, optional)
 import Text.Pretty.Simple
 
 
@@ -95,7 +96,7 @@ main = execParser opts >>= doTheThing
       <> help "The file to interpret"
       )
 
-    replCommand = ReplCommand . Just <$> strOption
+    replCommand = ReplCommand <$> (optional . strOption)
       (  long "load"
       <> metavar "INPUT"
       <> help "A file to load into the REPL"
