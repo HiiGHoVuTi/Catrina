@@ -19,9 +19,9 @@ jobs:
           - os: ubuntu-latest
             artifact_name: rina
             asset_name: rina-linux-amd64
-          - os: windows-latest
-            artifact_name: rina.exe
-            asset_name: rina-windows-amd64
+          #- os: windows-latest
+          #  artifact_name: rina.exe
+          #  asset_name: rina-windows-amd64
           - os: macos-latest
             artifact_name: rina
             asset_name: rina-macos-amd64
@@ -29,7 +29,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: nix-build
+      uses: workflow/nix-shell-action@v3
+      with:
+        script: nix-build
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
