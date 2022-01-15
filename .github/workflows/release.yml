@@ -28,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v16
     - name: Build
       uses: workflow/nix-shell-action@v3
       with:
