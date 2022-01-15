@@ -19,9 +19,9 @@ jobs:
           - os: ubuntu-latest
             artifact_name: rina
             asset_name: rina-linux-amd64
-          - os: windows-latest
-            artifact_name: rina.exe
-            asset_name: rina-windows-amd64
+          # - os: windows-latest
+          #  artifact_name: rina.exe
+          #  asset_name: rina-windows-amd64
           - os: macos-latest
             artifact_name: rina
             asset_name: rina-macos-amd64
