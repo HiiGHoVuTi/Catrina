@@ -21,9 +21,11 @@ data CatrinaError
   = ThisIsAGenericError
   | ParserError ParseError
   | IdentifierNotInScope Text
+  | ForbiddenConstruction Text
 
 -- NOTE(Maxime): Show "laws" disrespected on purpose for now
 instance Show CatrinaError where
   show ThisIsAGenericError = "Generic Error !" #Error
   show (ParserError p)     = show p
   show (IdentifierNotInScope n) = "Identifier "#Error <> unpack n #Field <> " not in scope !"#Error
+  show (ForbiddenConstruction n) = "Forbidden construction with " #Error <> unpack n #Field 

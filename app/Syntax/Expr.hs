@@ -104,14 +104,14 @@ term =  fmap Composition . many
     <|> try coneProperty
     <|> try coconeConstructor
     <|> coneAnalysis
-    <|> try literal
+    <|> literal
 
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier    lexer)
       <|> FloatLiteral          <$> try (float         lexer)
       <|> IntLiteral            <$> try (natural       lexer)
       <|> CharLiteral           <$> try (charLiteral   lexer)
-      <|> StringLiteral         <$> try (stringLiteral lexer)
+      <|> StringLiteral         <$>      stringLiteral lexer
       <?> "literal"
 
 operation :: Parser Expr
@@ -122,6 +122,6 @@ typeExpr = TypeExpr <$> try typeExpr'
 
 expr :: Parser Expr
 expr  = try typeExpr
-    <|> try operation
+    <|> operation
     <?> "expression"
 

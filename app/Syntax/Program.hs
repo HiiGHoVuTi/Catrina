@@ -12,4 +12,4 @@ newtype Program = Program { programDeclarations :: [Declaration] }
 
 -- FIXME(Maxime): obviously a program isn't a single expression
 program :: Parser Program
-program = Program <$> (whiteSpace lexer *> many (lexeme lexer declaration))
+program = Program <$> (whiteSpace lexer *> many (lexeme lexer declaration)) <* eof

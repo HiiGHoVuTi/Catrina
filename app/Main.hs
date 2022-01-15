@@ -17,7 +17,6 @@ import System.IO
 import Text.Parsec hiding (try, optional)
 import Text.Pretty.Simple
 
-import Debug.Pretty.Simple
 
 -- NOTE(Maxime): newtype is only here because linter is mad at me
 newtype Options = Options
@@ -73,7 +72,7 @@ doTheThing Options {optCommand = ReplCommand{..}} = do
         Just i    -> do
           let
             -- FIXME(Maxime): semantic analysis on programs too
-            parsed  = mapBoth ParserError id $ parse expr "repl" $ pack i
+            parsed  = mapBoth ParserError id $ parse (expr <* eof) "repl" $ pack i
           -- FIXME(Maxime)
           res <- lift $ 
             sequenceA (flip (evalExpr env) VUnit <$> parsed)
