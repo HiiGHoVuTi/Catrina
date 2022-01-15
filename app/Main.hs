@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, LambdaCase, BangPatterns #-}
+{-# LANGUAGE RecordWildCards, LambdaCase, BangPatterns, OverloadedStrings #-}
 
 module Main where
 
@@ -6,9 +6,11 @@ import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
-import Data.Text hiding (unlines, empty, foldl, head)
+import Data.Text hiding (foldl1, map, filter, unlines, empty, foldl, head)
+import Errors
 import Interpreter
 import Options.Applicative hiding (ParseError, empty)
+import Semantics
 import Syntax
 import System.Console.Haskeline
 import System.IO
@@ -31,53 +33,78 @@ data Command
 
 doTheThing :: Options -> IO ()
 
--- FIXME(Maxime)
-doTheThing Options {optCommand = InterpretCommand{..}} = do
-   fileContents <- openFile interpretedFilename ReadMode >>= hGetContents
-   let 
-    parsed = parse program "main" $ pack fileContents
-    in case parsed of
-         Left  err -> pPrint err
-         Right pog ->  putStrLn . pShowValue 
-                   <=< interpretProgram 
-                   $ pog
-
-doTheThing Options {optCommand = ReplCommand{..}} =  do
+loadProgram :: String -> IO (Either CatrinaError (Context, Program))
+loadProgram path = do
+  fileContents <- openFile path ReadMode >>= hGetContents
+  let 
+    parsed  = mapBoth ParserError id 
+        $ parse program "main" 
+        $ pack fileContents
+  -- FIXME(Maxime): monad gymnastics
+  loaded       <- fmap join . sequence $ loadDeps <$> parsed
   let
-    load maybeName = do
-      fileName <- maybeName
-      let 
-        fileContents = openFile fileName ReadMode >>= hGetContents
-        program'     = parse program fileName . pack <$> fileContents
-        in Just $ do
-          program'' <- program'
-          pure $ foldl interpretDecl start . programDeclarations <$> program''
+    context = createContext <$> loaded
+    tests   = join $ runAllChecks <$> context <*> loaded
+  pure $ tests *> unifyTuple (context, loaded)
+    where
+      getName :: Declaration -> Text
+      getName (ArrowDeclaration _ n _ _) = n
+      getName (ObjectDeclaration _ n _ ) = n
 
-    repl env = do
+      filterDecls :: Program -> Program
+      filterDecls (Program i exports' decls) 
+        = Program i exports' 
+        $ filter (flip elem exports' . getName) decls
+
+      concatDecls :: Program -> Program -> Program
+      concatDecls (Program i e xs) (Program _ _ ys) = Program i e (xs++ys)
+
+      combinePrograms :: [Program] -> Program
+      combinePrograms = foldl1 concatDecls . map filterDecls
+
+      loadDeps :: Program -> IO (Either CatrinaError Program)
+      loadDeps (Program paths exp' decls)
+        = fmap (fmap (combinePrograms.(Program[]exp' decls:)) . sequence) 
+        $ forM paths $ (fmap.fmap) snd . loadProgram . unpack . (<> ".rina")
+
+doTheThing Options {optCommand = InterpretCommand{..}} =
+  loadProgram interpretedFilename >>= \case
+     Left  err -> pPrint err
+     Right pog -> void
+               . interpretProgram
+               $ snd pog
+
+doTheThing Options {optCommand = ReplCommand{..}} = do
+   let
+    makeEnv = foldl interpretDecl start . programDeclarations
+    load maybeName = (fmap.fmap.fmap) makeEnv . loadProgram <$> maybeName
+
+    repl (ctx, env) = do
       input <- getInputLine $ "Rina" #Operator <> "> " #Parens
       case input of
         Nothing   -> pure ()
         Just ":q" -> lift $ putStrLn "Thanks for using Rina ❤️"
         Just i    -> do
-          let parsed = parse expr "repl" $ pack i
+          let
+            -- FIXME(Maxime): semantic analysis on programs too
+            parsed  = mapBoth ParserError id $ parse (expr <* eof) "repl" $ pack i
           -- FIXME(Maxime)
           res <- lift $ 
             sequenceA (flip (evalExpr env) VUnit <$> parsed)
-            `catch` (\x -> (const.pure.Right$ VPlaceholder) (x :: ErrorCall))
+            `catch` (\x -> (const.pure.Right $ VPlaceholder) (x :: ErrorCall))
           case res of
-            Left  err -> pPrint err >> repl env
-            Right out -> lift (putStrLn . pShowValue $ out) >> repl env
+            Left  err -> lift (print err) >> repl (ctx, env)
+            Right out -> lift (putStrLn . pShowValue $ out) >> repl (ctx, env)
 
     in case load replFilename of
-         Nothing -> runInputT defaultSettings (repl start)
+         Nothing -> runInputT defaultSettings (repl (createContext (Program [][][]), start))
          Just x  -> x >>= \case
-                      Left  err -> pPrint err
+                      Left  err -> print err
                       Right env -> runInputT defaultSettings (repl env)
 
 main :: IO ()
 main = execParser opts >>= doTheThing
   where 
-    -- opts = flip info (progDesc "The essential Cat-Rina compilers and toolkits") $ 
     opts = info (optsParser <**> helper)
          $ fullDesc 
         <> progDesc (unlines

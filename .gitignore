@@ -1,3 +1,5 @@
 dist-newstyle
 samples
+fakelib
+fakelib/**
 result

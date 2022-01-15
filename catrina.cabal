@@ -24,7 +24,10 @@ executable rina
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    Parsing
+    other-modules:  
+                    Errors
+                    --
+                    , Parsing
                     , Parsing.LangDef
                     , Parsing.Names
                     , Parsing.Lexer
@@ -37,6 +40,10 @@ executable rina
                     , Syntax.Declaration
                     , Syntax.Program
                     --
+                    , Semantics
+                    , Semantics.Context
+                    , Semantics.Identifiers
+                    -- 
                     , Types
                     , Types.Category
                     , Types.Categories.Base
