@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Semantics (
+  Context(..),
   runAllChecks, createContext
                  ) where
 
@@ -23,7 +24,7 @@ runAllChecks = (foldl' (<*) (pure ()) .) . flip flip checks . (map .) . flip . f
 
 
 forbiddenConstructions :: Context -> Program -> Either CatrinaError ()
-forbiddenConstructions ctx (Program ((ArrowDeclaration _ _ _ ex):xs)) = forbiddenConstructions' ex *> forbiddenConstructions ctx (Program xs)
+forbiddenConstructions ctx (Program _ _ ((ArrowDeclaration _ _ _ ex):xs)) = forbiddenConstructions' ex *> forbiddenConstructions ctx (Program [][]xs)
   where
     forbiddenConstructions' :: Expr -> Either CatrinaError ()
     forbiddenConstructions' (Composition es) = foldl' (<*) (pure ()) $ map forbiddenConstructions' es
@@ -35,6 +36,6 @@ forbiddenConstructions ctx (Program ((ArrowDeclaration _ _ _ ex):xs)) = forbidde
     forbiddenConstructions' (ConeProperty "shell") = Left $ ForbiddenConstruction ".shell"
     forbiddenConstructions' _ = pure ()
 
-forbiddenConstructions ctx (Program (_:xs)) = forbiddenConstructions ctx (Program xs)
+forbiddenConstructions ctx (Program _ _ (_:xs)) = forbiddenConstructions ctx (Program [][]xs)
 forbiddenConstructions _ _ = pure ()
 

@@ -25,7 +25,8 @@ baseIdentifiers =
   , "shell", "stdout", "id"
   ]
 
+-- FIXME(Maxime): inputs
 getIdentifiers :: Program -> [Text]
-getIdentifiers (Program (ArrowDeclaration _ n _ _:xs)) = n : getIdentifiers (Program xs)
-getIdentifiers (Program (ObjectDeclaration _ n _ :xs)) = n : getIdentifiers (Program xs)
-getIdentifiers (Program []) = []
+getIdentifiers (Program _ _ (ArrowDeclaration _ n _ _:xs)) = n : getIdentifiers (Program [][]xs)
+getIdentifiers (Program _ _ (ObjectDeclaration _ n _ :xs)) = n : getIdentifiers (Program [][]xs)
+getIdentifiers (Program _ _ []) = []

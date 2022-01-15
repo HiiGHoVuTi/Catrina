@@ -12,7 +12,7 @@ endif
 syntax match rinaComment "$--.*"
 " FIXME(Maxime): multiline comments
 
-syntax keyword rinaKeyword ar ob
+syntax keyword rinaKeyword ar ob import export
 
 " FIXME(Maxime)
 syntax match rinaKeyword "{=}" 
