@@ -82,7 +82,7 @@ sequencedCone = do
     in pure reseq
   where
     process :: Map.Map Text Expr -> Map.Map Text Expr -> Map.Map Text Expr
-    process old new = Map.mapWithKey update old
+    process old new = Map.mapWithKey update (Map.union old new)
       where
         update k _ = if Map.member k new
                         then new Map.! k
@@ -121,7 +121,6 @@ term =  fmap Composition . many
     <|> try (parens lexer expr)
     <|> try unit'
     <|> try cone
-    <|> try sequencedCone
     <|> try cocone
     <|> try coneProperty
     <|> try coconeConstructor
