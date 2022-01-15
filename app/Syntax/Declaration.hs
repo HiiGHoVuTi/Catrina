@@ -33,7 +33,7 @@ object = do
   ObjectDeclaration (pack cat) (pack name) <$> typeDecl
 
 declaration :: Parser Declaration
-declaration  = try arrow
-           <|> try object
+declaration  = arrow
+           <|> object
            <?> "declaration"
 
