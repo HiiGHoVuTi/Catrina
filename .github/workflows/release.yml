@@ -43,3 +43,4 @@ jobs:
         file: ./result/bin/${{ matrix.artifact_name }}
         asset_name: ${{ matrix.asset_name }}
         tag: ${{ github.ref }}
+        overwrite: true
