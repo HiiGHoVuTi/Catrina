@@ -58,9 +58,9 @@ operatorsTable =
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
   , [otherBinop ":," AssocRight]
   , [otherBinop  "$" AssocRight]
-  , [ otherBinop "==" AssocLeft 
-    , otherBinop ">"  AssocLeft, otherBinop "<"  AssocLeft
-    , otherBinop ">=" AssocLeft, otherBinop "<=" AssocLeft ]
+  , [ otherBinop "=="  AssocLeft, otherBinop "!="  AssocLeft 
+    , otherBinop ">!=" AssocLeft, otherBinop "<!=" AssocLeft
+    , otherBinop ">="  AssocLeft, otherBinop "<="  AssocLeft ]
   ]
 
 
@@ -124,8 +124,8 @@ term =  fmap Composition . many
     <|> try cocone
     <|> try coneProperty
     <|> try coconeConstructor
-    <|> coneAnalysis
-    <|> literal
+    <|> try coneAnalysis
+    <|> try literal
 
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier    lexer)
@@ -143,6 +143,6 @@ typeExpr = TypeExpr <$> try typeExpr'
 
 expr :: Parser Expr
 expr  = try typeExpr
-    <|> operation
+    <|> try operation
     <?> "expression"
 

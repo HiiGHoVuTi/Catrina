@@ -14,7 +14,7 @@ executeStd "shell"  = shell
 executeStd "stdout" = stdout
 
 executeStd "==" = pure.eq
-executeStd "/=" = pure.neq
+executeStd "!=" = pure.neq
 
 -- NumericPrelude
 executeStd "+"  = pure.add
@@ -22,10 +22,10 @@ executeStd "-"  = pure.sub
 executeStd "*"  = pure.mult
 executeStd "/"  = pure.div'
 
-executeStd ">"  = pure.gt
-executeStd "<"  = pure.lt
-executeStd ">=" = pure.geq
-executeStd "<=" = pure.leq
+executeStd ">!=" = pure.gt
+executeStd "<!=" = pure.lt
+executeStd ">="  = pure.geq
+executeStd "<="  = pure.leq
 
 -- Rest
 -- FIXME(Maxime): actually use @@single c *> identifier@@
