@@ -1,0 +1,17 @@
+
+import (
+
+       )
+
+export (
+  list
+       )
+
+ar Cat list : Base -> Base =
+  [ empty : {}
+  , cons  : { head :
+            , tail : list
+            }
+  ]
+
+

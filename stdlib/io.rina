@@ -1,0 +1,17 @@
+
+import (
+  stdlib/list
+  stdlib/maybe
+  stdlib/string
+       )
+
+export (
+
+       )
+
+ar Shell run_cmd : String -> String =
+  words
+  [ empty = {=} nothing.
+  , cons  = { path = .head, args = .tail, stdin = {=} empty. } shell
+  ]
+  force_maybe
