@@ -41,9 +41,9 @@ escape' Error    = "1;31"
 (#) src col = escape col <> src <> escape Normal
 
 
-conv :: (t -> String) -> Map.Map Text t -> String
-conv f = intercalate ", " 
-     . map (\(k, v) -> unpack k #Field <> " = " #Operator <> f v) 
+conv :: (t -> String) -> String -> Map.Map Text t -> String
+conv f eq = intercalate ", " 
+     . map (\(k, v) -> unpack k #Field <> eq#Operator <> f v) 
      . Map.toList
 
 renderString :: Map.Map Text Value -> String
@@ -66,7 +66,7 @@ pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
 pShowValue (VCocone ("cons"
            , VCone m))          = ("\"" <> renderString m <> "\"") #Literal
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field
-pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue m <> " }" #Parens
+pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue " = " m <> " }" #Parens
  
 pShowExpr :: Expr -> String
 pShowExpr (Composition xs)  = unwords . map pShowExpr $ xs
@@ -84,8 +84,8 @@ pShowExpr (ConeProperty l)      = ("." <> unpack l) #Field
 pShowExpr (CoconeConstructor l) = (unpack l <> ".") #Field
 pShowExpr (TypeExpr t)          = pShowType t
 pShowExpr (BuiltIn t)           = unpack t
-pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr m <> " }" #Parens
-pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr m <> " ]" #Parens
+pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr " = " m <> " }" #Parens
+pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr " = " m <> " ]" #Parens
 
 pShowType :: Type -> String
 pShowType TId   = ""
@@ -93,7 +93,7 @@ pShowType TUnit = "{:}" #CUnit
 pShowType (TIdentifier i)  = unpack i #Normal
 pShowType (TArrow t1 t2)   = pShowType t1 <> " -> " #Operator <> pShowType t2
 pShowType (TFunctor t1 t2) = pShowType t1 <> " < "#Parens <> pShowType t2 <> " >"#Parens
-pShowType (TCone m)        = "{ " #Parens <> conv pShowType m <> " }" #Parens
-pShowType (TCocone m)      = "[ " #Parens <> conv pShowType m <> " ]" #Parens
+pShowType (TCone m)        = "{ " #Parens <> conv pShowType " : " m <> " }" #Parens
+pShowType (TCocone m)      = "[ " #Parens <> conv pShowType " : " m <> " ]" #Parens
 
 

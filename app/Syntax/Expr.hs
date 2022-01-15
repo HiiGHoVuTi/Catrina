@@ -7,7 +7,7 @@ module Syntax.Expr (
 
 import Data.Functor.Identity
 import qualified Data.Map as Map
-import Data.Text hiding (zip, reverse)
+import Data.Text hiding (map, scanl1, zip, reverse)
 import Parsing
 import Parsing.Operators
 import Syntax.Common
@@ -68,9 +68,30 @@ unit' :: Parser Expr
 unit' = Unit <$ braces lexer (oneOf "=" <|> pure '_') 
     <?> "unit"
 
+
+sequencedCone :: Parser Expr
+sequencedCone = do
+  cones <- fmap (map Map.fromList) 
+        $ braces    lexer 
+        $ semiSep1  lexer 
+        $ commaSep1 lexer 
+        $ pair "=" expr
+  let reseq = Composition 
+            $ map Cone 
+            $ scanl1 process cones
+    in pure reseq
+  where
+    process :: Map.Map Text Expr -> Map.Map Text Expr -> Map.Map Text Expr
+    process old new = Map.mapWithKey update old
+      where
+        update k _ = if Map.member k new
+                        then new Map.! k
+                        else ConeProperty k
+
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
-cone = try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair "=" expr)
+cone = try sequencedCone
+   <|> try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair "=" expr)
    <|> try (fmap (Cone . tuple)        . braces lexer . commaSep1 lexer $ expr)
    <?> "cone"
 
@@ -100,6 +121,7 @@ term =  fmap Composition . many
     <|> try (parens lexer expr)
     <|> try unit'
     <|> try cone
+    <|> try sequencedCone
     <|> try cocone
     <|> try coneProperty
     <|> try coconeConstructor
