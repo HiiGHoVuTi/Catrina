@@ -33,9 +33,7 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: Build
-      uses: workflow/nix-shell-action@v3
-      with:
-        script: nix-build
+      run: nix-build
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
