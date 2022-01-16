@@ -88,11 +88,6 @@ jobs:
           mkdir dist
           cabal install exe:rina --install-method=copy --overwrite-policy=always --installdir=dist
 
-      - name: Compress binary
-        uses: svenstaro/upx-action@2.0.1
-        with:
-          file: ${{ env.BINARY_PATH }}
-
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v1
         with:
