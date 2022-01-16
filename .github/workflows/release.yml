@@ -54,12 +54,18 @@ jobs:
       run: cabal build --enable-tests --enable-benchmarks all
     - name: Run tests
       run: cabal test all
+      
+    - name: Copy file
+      uses: canastro/copy-action@0.0.2
+      with:
+        source: ./**/rina/${{ matrix.artifact_name }}
+        target: ./${{ matrix.artifact_name }}
 
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./**/rina/${{ matrix.artifact_name }}
+        file: ./${{ matrix.artifact_name }}
         asset_name: ${{ matrix.asset_name }}
         tag: ${{ github.ref }}
         overwrite: true
