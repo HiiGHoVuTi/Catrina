@@ -10,109 +10,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  create_release:
-    name: Create Github Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1.1.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: true
-          prerelease: false
-
-      - name: Output Release URL File
-        run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
-      - name: Save Release URL File for publish
-        uses: actions/upload-artifact@v1
-        with:
-          name: release_url
-          path: release_url.txt
-
-  build_artifact:
-    needs: [create_release]
-    name: ${{ matrix.os }}/GHC ${{ matrix.ghc }}/${{ github.ref }}
+  publish:
+    name: Publish for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        ghc:
-          - "8.8.3"
-          - "8.10.1"
-        cabal: ["3.2"]
-        exclude:
+        include:
+          - os: ubuntu-latest
+            artifact_name: rina
+            asset_name: rina-linux-amd64
           - os: windows-latest
-            ghc: 8.8.3
+            artifact_name: rina.exe
+            asset_name: rina-windows-amd64
+          - os: macos-latest
+            artifact_name: rina
+            asset_name: rina-macos-amd64
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Set tag name
-        uses: olegtarasov/get-tag@v2
-        id: tag
-        with:
-          tagRegex: "v(.*)"
-          tagRegexGroup: 1
-
-      - uses: actions/setup-haskell@v1
-        with:
-          ghc-version: '8.10.3'
-          cabal-version: '3.2'
-
-      - name: Freeze
-        run: |
-          cabal freeze
-
-      - name: Cache
-        uses: actions/cache@v1
-        env:
-          cache-name: cache-cabal
-        with:
-          path: ~/.cabal
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
-          restore-keys: |
-              ${{ runner.os }}-build-${{ env.cache-name }}-
-              ${{ runner.os }}-build-
-              ${{ runner.os }}-
-
-      - name: Build binary
-        run: |
-          mkdir dist
-          cabal install exe:rina --install-method=copy --overwrite-policy=always --installdir=dist
-
-      - name: Load Release URL File from release job
-        uses: actions/download-artifact@v1
-        with:
-          name: release_url
-
-      - if: matrix.os == 'windows-latest'
-        name: Upload Release Asset
-        id: upload-release-asset-windows
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          asset_path: ./dist/rina.exe
-          asset_name: rina-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}.exe
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_content_type: application/octet-stream
-      
-      - if: matrix.os != 'windows-latest'
-        name: Upload Release Asset
-        id: upload-release-asset-others
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          asset_path: ./dist/rina
-          asset_name: rina-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_content_type: application/octet-stream
+    - uses: actions/checkout@v2
+    
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: '8.10.3'
+        cabal-version: '3.2'
+        
+    - name: Cache
+      uses: actions/cache@v1
+      env:
+        cache-name: cache-cabal
+      with:
+        path: ~/.cabal
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: |
+        cabal update
+        cabal install exe:rina --install-method=copy --overwrite-policy=always --installdir=dist
+    - name: Build
+      run: cabal build
+    - name: Run tests
+      run: cabal test all
+    
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./dist/${{ matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}
+        tag: ${{ github.ref }}
+        overwrite: true
