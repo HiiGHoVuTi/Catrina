@@ -62,12 +62,10 @@ jobs:
           tagRegex: "v(.*)"
           tagRegexGroup: 1
 
-      - name: Setup Haskell
-        uses: actions/setup-haskell@v1.1.1
-        id: setup-haskell-cabal
+      - uses: actions/setup-haskell@v1
         with:
-          ghc-version: ${{ matrix.ghc }}
-          cabal-version: ${{ matrix.cabal }}
+          ghc-version: '8.10.3'
+          cabal-version: '3.2'
 
       - name: Freeze
         run: |
