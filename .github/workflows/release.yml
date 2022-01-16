@@ -88,13 +88,6 @@ jobs:
           mkdir dist
           cabal install exe:rina --install-method=copy --overwrite-policy=always --installdir=dist
 
-      - if: matrix.os == 'windows-latest'
-        name: Set extension to .exe on Windows
-        run: echo "::set-env name=EXT::.exe"
-
-      - name: Set binary path name
-        run: echo "::set-env name=BINARY_PATH::./dist/rina${{ env.EXT }}"
-
       - name: Compress binary
         uses: svenstaro/upx-action@2.0.1
         with:
@@ -105,18 +98,24 @@ jobs:
         with:
           name: release_url
 
-      - name: Get Release File Name & Upload URL
-        id: get_release_info
-        run: |
-          echo "::set-output name=upload_url::$(cat release_url/release_url.txt)"
-
-      - name: Upload Release Asset
-        id: upload-release-asset
+      - if: matrix.os == 'windows-latest'
+        name: Upload Release Asset
+        id: upload-release-asset-windows
         uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ${{ env.BINARY_PATH }}
-          asset_name: rina-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}${{ env.EXT }}
+          asset_path: ./dist/rina.exe
+          asset_name: rina-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}.exe
+          asset_content_type: application/octet-stream
+      
+      - if: matrix.os != 'windows-latest'
+        name: Upload Release Asset
+        id: upload-release-asset-others
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_path: ./dist/rina
+          asset_name: rina-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}
           asset_content_type: application/octet-stream
