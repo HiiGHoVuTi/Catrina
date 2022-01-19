@@ -12,6 +12,12 @@
 - Execution
 
 # Todo
+## CLI
+
+- Basic parser ✅
+- Interpret a single file ✅
+- REPL ✅
+
 ## Lexing
 
 All done for now ✅
@@ -40,7 +46,8 @@ All done for now ✅
 
 ## Semantic Analysis
 
-Nothing yet
+- Identifiers out of scope ✅
+- Invalid arrow constructs ✅
 
 ## Type Checking
 
@@ -58,7 +65,7 @@ Nothing yet
 
 ## Interpreter Setup
 
-- "Scope", TypeContexts ✅
+- "Scope" ✅, TypeContexts ✅
 - Thunk creation
 
 ## Optim Loop (JS)
@@ -73,7 +80,7 @@ Nothing yet
 
 - Composition ✅
 - Arithmetic expression evaluation ✅
-- Boolean logic 
+- Boolean logic ✅
 - Base Equality ✅ / Comparaison
 - Cones ✅
 - Cocones ✅
@@ -82,7 +89,7 @@ Nothing yet
 - `$` and `'` operators ✅
 - `:` operator ✅
 - Currying
-- Pretty printing results (lists and stuff)
+- Pretty printing results (lists and stuff) ✅
 
 ## REPL
 - Arrow keys ✅

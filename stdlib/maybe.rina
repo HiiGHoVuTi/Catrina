@@ -1,0 +1,28 @@
+
+import (
+
+       )
+
+export (
+  maybe
+  maybe_join
+  maybe_pure
+       )
+
+ob Base MaybeInt =
+  [ nothing : {}
+  , just    : Int
+  ]
+
+ar Cat maybe : Base -> Base =
+  [ nothing : {}
+  , just    : 
+  ]
+
+-- monad definition (pre-typeclasses)
+ar Base maybe_join : maybe<maybe<a>> -> maybe<a> =
+  [ nothing : {} nothing.
+  , just    :
+  ]
+
+ar Base maybe_pure : a -> maybe<a> = just.

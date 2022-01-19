@@ -1,0 +1,16 @@
+
+import (
+  stdlib/list
+       )
+
+export (
+  words
+       )
+
+ar Base reverse : String -> String = { input: , buffer: empty. } reverse_
+
+ar Base reverse_ : { input : String, buffer : String } -> String =
+  @input
+    [ empty: .buffer
+    , cons : { input: .input .tail, buffer: .input .head :, .buffer } reverse_
+    ]
