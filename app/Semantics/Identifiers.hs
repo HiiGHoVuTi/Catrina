@@ -22,8 +22,9 @@ identifierInScopeCheck
 
 
 checkId :: TypeValueMode -> [Text] -> Text -> Either CatrinaError ()
-checkId TypeMode _ n
+checkId TypeMode ids n
   | toLower n == n = pure ()
+  | n `elem` ids   = pure ()
   | otherwise      = Left (IdentifierNotInScope n)
 checkId ValueMode ids n
   | n `elem` ids   = pure ()
