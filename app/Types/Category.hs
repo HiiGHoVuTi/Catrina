@@ -5,12 +5,11 @@ module Types.Category (
 import Data.Map
 import Data.Text
 import Syntax.Expr
-import Syntax.Type
 
-type Arrow = (Type, Expr)
+type Arrow = (Expr, Expr)
 
 data Category = Category
-  { objects  :: Map Text Type
+  { objects  :: Map Text Expr
   , arrows   :: Map Text Arrow
   , compose  :: Arrow
   -- NOTE(Maxime): ComposeCone and ComposeCocone ?
