@@ -8,7 +8,6 @@ import Data.Text
 import Interpreter.Util
 import Syntax.Declaration
 import Syntax.Expr
-import Syntax.Type
 import Types.Category
 
 interpretDecl :: Env -> Declaration -> Env
@@ -18,11 +17,11 @@ interpretDecl env decl =
     ArrowDeclaration  cat name type' value -> adjust (addArrow name type' value) cat env
 
 
-addObject :: Text -> Type -> Category -> Category
+addObject :: Text -> Expr -> Category -> Category
 addObject name value Category{..} =
   Category { objects = insert name value objects, ..}
 
 
-addArrow :: Text -> Type -> Expr -> Category -> Category
+addArrow :: Text -> Expr -> Expr -> Category -> Category
 addArrow name t v Category{..} =
   Category { arrows = insert name (t, v) arrows, .. }

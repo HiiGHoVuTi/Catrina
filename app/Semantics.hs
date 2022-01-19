@@ -11,7 +11,6 @@ import Errors
 import Semantics.Context
 import Semantics.Identifiers
 import Syntax
-import Syntax.Declaration
 import Syntax.Expr
 
 runAllChecks :: Context -> Program -> Either CatrinaError ()
@@ -31,9 +30,10 @@ forbiddenConstructions ctx (Program _ _ ((ArrowDeclaration _ _ _ ex):xs)) = forb
     forbiddenConstructions' (Cone m)         = Map.foldl' (<*) (pure ()) $ Map.map forbiddenConstructions' m
     forbiddenConstructions' (Cocone m)       = Map.foldl' (<*) (pure ()) $ Map.map forbiddenConstructions' m
     forbiddenConstructions' (UnaryExpression _ e)     = forbiddenConstructions' e
+    forbiddenConstructions' (ConeProperty "shell") = Left $ ForbiddenConstruction ".shell"
+    forbiddenConstructions' (BinaryExpression (OtherOp "->") _ _) = Left $ ForbiddenConstruction "->"
     forbiddenConstructions' (BinaryExpression _ e e') = forbiddenConstructions' e *> forbiddenConstructions' e'
     forbiddenConstructions' (FunctorApplication _ e)  = forbiddenConstructions' e
-    forbiddenConstructions' (ConeProperty "shell") = Left $ ForbiddenConstruction ".shell"
     forbiddenConstructions' _ = pure ()
 
 forbiddenConstructions ctx (Program _ _ (_:xs)) = forbiddenConstructions ctx (Program [][]xs)

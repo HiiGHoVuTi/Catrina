@@ -5,13 +5,12 @@ module Syntax.Declaration (
 import Data.Text
 import Parsing
 import Syntax.Expr
-import Syntax.Type
 import Text.Parsec
 import Text.Parsec.Token
 
 data Declaration
-  = ArrowDeclaration Text Text Type Expr
-  | ObjectDeclaration Text Text Type
+  = ArrowDeclaration Text Text Expr Expr
+  | ObjectDeclaration Text Text Expr
   deriving (Show)
   
 arrow :: Parser Declaration
@@ -20,7 +19,7 @@ arrow = do
   cat <- identifier lexer
   name <- identifier lexer
   reservedOp lexer ":"
-  type' <- typeDecl
+  type' <- expr
   reservedOp lexer "="
   ArrowDeclaration (pack cat) (pack name) type' <$> expr
 
@@ -30,7 +29,7 @@ object = do
   cat <- identifier lexer
   name <- identifier lexer
   reservedOp lexer "="
-  ObjectDeclaration (pack cat) (pack name) <$> typeDecl
+  ObjectDeclaration (pack cat) (pack name) <$> expr
 
 declaration :: Parser Declaration
 declaration  = arrow

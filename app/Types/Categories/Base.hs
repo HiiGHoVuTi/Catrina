@@ -6,7 +6,6 @@ module Types.Categories.Base (
 
 import Data.Map
 import Syntax.Expr
-import Syntax.Type
 import Types.Category
 import qualified Types.Category as Category
 
@@ -15,16 +14,16 @@ base = Category
   { objects = empty
   , arrows  = empty
   -- NOTE(Maxime): Base can't be specified in the language
-  , Category.compose = (TUnit, Unit)
+  , Category.compose = (Unit, Unit)
   }
 
 
 catO'Cats :: Category
 catO'Cats = Category
   { objects = fromList 
-    [ ("Cat" , TIdentifier "Cat")
-    , ("Base", TIdentifier "Base")
+    [ ("Cat" , Identifier "Cat")
+    , ("Base", Identifier "Base")
     ]
   , arrows  = empty -- NOTE(Maxime): add some built-ins
-  , Category.compose = (TUnit, Unit)
+  , Category.compose = (Unit, Unit)
   }

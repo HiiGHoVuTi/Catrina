@@ -11,7 +11,6 @@ import Data.Text hiding (map, scanl1, zip, reverse)
 import Parsing
 import Parsing.Operators
 import Syntax.Common
-import Syntax.Type
 import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Expr
@@ -31,11 +30,10 @@ data Expr = Unit
           | Cone (Map.Map Text Expr)
           | Cocone (Map.Map Text Expr)
           | BinaryExpression OperatorToken Expr Expr
-          | FunctorApplication Type Expr
+          | FunctorApplication Expr Expr
           | ConeProperty Text
           | CoconeConstructor Text
           | ConeAnalysis Text
-          | TypeExpr Type
           | BuiltIn Text
   deriving (Show, Eq)
 
@@ -58,16 +56,16 @@ operatorsTable =
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
   , [otherBinop ":," AssocRight]
   , [otherBinop  "$" AssocRight]
-  , [ otherBinop "==" AssocLeft 
-    , otherBinop ">"  AssocLeft, otherBinop "<"  AssocLeft
-    , otherBinop ">=" AssocLeft, otherBinop "<=" AssocLeft ]
+  , [ otherBinop "=="  AssocLeft, otherBinop "!="  AssocLeft 
+    , otherBinop ">!=" AssocLeft, otherBinop "<!=" AssocLeft
+    , otherBinop ">="  AssocLeft, otherBinop "<="  AssocLeft ]
+  , [otherBinop "->" AssocRight]
   ]
 
 
 unit' :: Parser Expr
-unit' = Unit <$ braces lexer (oneOf "=" <|> pure '_') 
+unit' = Unit <$ braces lexer (oneOf ":" <|> pure '_') 
     <?> "unit"
-
 
 sequencedCone :: Parser Expr
 sequencedCone = do
@@ -91,12 +89,12 @@ sequencedCone = do
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
 cone = try sequencedCone
-   <|> try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair "=" expr)
+   <|> try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair ":" expr)
    <|> try (fmap (Cone . tuple)        . braces lexer . commaSep1 lexer $ expr)
    <?> "cone"
 
 cocone :: Parser Expr
-cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair "=" expr)
+cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" expr)
      <|> try (fmap (Cocone . tuple)        . brackets lexer . commaSep1 lexer $ expr)
      <?> "cocone"
 
@@ -106,14 +104,15 @@ coneProperty = fmap (ConeProperty . pack) $ char '.' *> identifier lexer
 coneAnalysis :: Parser Expr
 coneAnalysis = fmap (ConeAnalysis . pack) $ char '@' *> identifier lexer
 
--- FIXME
+-- FIXME(Maxime): not only letter
 coconeConstructor :: Parser Expr
 coconeConstructor = CoconeConstructor . pack <$> lexeme lexer (many1 letter <*  char '.')
 
+-- FIXME(Maxime): any expr, not just Identifier
 functor :: Parser Expr
 functor = do
   name <- identifier lexer
-  FunctorApplication (TIdentifier $ pack name) <$> angles lexer operation
+  FunctorApplication (Identifier $ pack name) <$> angles lexer operation
 
 term :: Parser Expr
 term =  fmap Composition . many
@@ -124,8 +123,8 @@ term =  fmap Composition . many
     <|> try cocone
     <|> try coneProperty
     <|> try coconeConstructor
-    <|> coneAnalysis
-    <|> literal
+    <|> try coneAnalysis
+    <|> try literal
 
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier    lexer)
@@ -138,11 +137,7 @@ literal = Identifier   . pack   <$> try (identifier    lexer)
 operation :: Parser Expr
 operation = buildExpressionParser operatorsTable term
 
-typeExpr :: Parser Expr
-typeExpr = TypeExpr <$> try typeExpr'
-
 expr :: Parser Expr
-expr  = try typeExpr
-    <|> operation
+expr  = operation
     <?> "expression"
 

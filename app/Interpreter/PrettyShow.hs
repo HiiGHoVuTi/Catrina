@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import Data.Text (Text, unpack)
 import Interpreter.Value
 import Syntax.Expr
-import Syntax.Type
 
 -- | The enum of all possible colors (ANSI terminal)
 data Color
@@ -61,7 +60,6 @@ pShowValue (VInt n)             = show n #Literal
 pShowValue (VFloat x)           = show x #Literal
 pShowValue (VShort c)           = show c #Literal
 pShowValue (VExpr x)            = "'" #Operator <> "( " #Parens <> pShowExpr x <> " )" #Parens
-pShowValue (VType t)            = pShowType t
 pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
 pShowValue (VCocone ("cons"
            , VCone m))          = ("\"" <> renderString m <> "\"") #Literal
@@ -78,22 +76,12 @@ pShowExpr (StringLiteral s) = show s #Literal
 pShowExpr (CharLiteral c)   = show c #Literal
 pShowExpr (UnaryExpression (OtherOp op) e) = unpack op #Operator <> pShowExpr e
 pShowExpr (BinaryExpression (OtherOp op) e1 e2) = "("#Parens <> pShowExpr e1 <> " " <> unpack op #Operator <> " " <> pShowExpr e2 <> ")"#Parens
-pShowExpr (FunctorApplication t e) = pShowType t <> " < "#Parens <> pShowExpr e <> " >"#Parens
+pShowExpr (FunctorApplication t e) = pShowExpr t <> " < "#Parens <> pShowExpr e <> " >"#Parens
 pShowExpr (ConeAnalysis l)      = ("@" <> unpack l) #Field
 pShowExpr (ConeProperty l)      = ("." <> unpack l) #Field
 pShowExpr (CoconeConstructor l) = (unpack l <> ".") #Field
-pShowExpr (TypeExpr t)          = pShowType t
 pShowExpr (BuiltIn t)           = unpack t
 pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr " = " m <> " }" #Parens
 pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr " = " m <> " ]" #Parens
-
-pShowType :: Type -> String
-pShowType TId   = ""
-pShowType TUnit = "{:}" #CUnit
-pShowType (TIdentifier i)  = unpack i #Normal
-pShowType (TArrow t1 t2)   = pShowType t1 <> " -> " #Operator <> pShowType t2
-pShowType (TFunctor t1 t2) = pShowType t1 <> " < "#Parens <> pShowType t2 <> " >"#Parens
-pShowType (TCone m)        = "{ " #Parens <> conv pShowType " : " m <> " }" #Parens
-pShowType (TCocone m)      = "[ " #Parens <> conv pShowType " : " m <> " ]" #Parens
 
 
