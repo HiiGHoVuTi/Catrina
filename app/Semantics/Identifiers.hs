@@ -26,8 +26,8 @@ checkId TypeMode _ n
   | toLower n == n = pure ()
   | otherwise      = Left (IdentifierNotInScope n)
 checkId ValueMode ids n
-  | n `elem` ids = pure ()
-  | otherwise    = Left (IdentifierNotInScope n)
+  | n `elem` ids   = pure ()
+  | otherwise      = Left (IdentifierNotInScope n)
 
 checkExpr :: TypeValueMode -> [Text] -> Expr -> Either CatrinaError ()
 checkExpr w ids (Composition es) = foldl' (<*) (pure ()) $ map (checkExpr w ids) es
