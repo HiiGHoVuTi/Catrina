@@ -38,9 +38,8 @@ loadProgram path = do
   fileContents <- openFile path ReadMode >>= hGetContents
   let 
     parsed  = mapBoth ParserError id 
-        $ parse program "main" 
+        $ parse program path 
         $ pack fileContents
-  -- FIXME(Maxime): monad gymnastics
   loaded       <- fmap join . sequence $ loadDeps <$> parsed
   let
     context = createContext <$> loaded
@@ -60,7 +59,7 @@ loadProgram path = do
       concatDecls (Program i e xs) (Program _ _ ys) = Program i e (xs++ys)
 
       combinePrograms :: [Program] -> Program
-      combinePrograms = foldl1 concatDecls . map filterDecls
+      combinePrograms = foldl1 concatDecls -- . map filterDecls
 
       loadDeps :: Program -> IO (Either CatrinaError Program)
       loadDeps (Program paths exp' decls)
@@ -69,7 +68,7 @@ loadProgram path = do
 
 doTheThing Options {optCommand = InterpretCommand{..}} =
   loadProgram interpretedFilename >>= \case
-     Left  err -> pPrint err
+     Left  err -> print err
      Right pog -> void
                . interpretProgram
                $ snd pog
@@ -83,7 +82,7 @@ doTheThing Options {optCommand = ReplCommand{..}} = do
       input <- getInputLine $ "Rina" #Operator <> "> " #Parens
       case input of
         Nothing   -> pure ()
-        Just ":q" -> lift $ putStrLn "Thanks for using Rina ❤️"
+        Just ":q" -> lift $ putStrLn "Thanks for using Rina 💖"
         Just i    -> do
           let
             -- FIXME(Maxime): semantic analysis on programs too

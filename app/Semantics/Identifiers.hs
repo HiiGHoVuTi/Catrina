@@ -5,7 +5,7 @@ module Semantics.Identifiers (
 
 import Data.List
 import qualified Data.Map as Map
-import Data.Text (Text)
+import Data.Text (Text, toLower)
 import Errors
 import Semantics.Context
 import Syntax.Declaration
@@ -38,7 +38,9 @@ checkExpr ___ ________________ = pure ()
 
 checkType :: [Text] -> Type -> Either CatrinaError ()
 checkType ids (TArrow t t')   = checkType ids t *> checkType ids t'
-checkType ids (TIdentifier t) = checkId ids t
+checkType ids (TIdentifier t) 
+    | toLower t == t = pure ()
+    | otherwise      = checkId ids t
 checkType ids (TCone m)       = Map.foldl' (<*) (pure ()) $ Map.map (checkType ids) m
 checkType ids (TCocone m)     = Map.foldl' (<*) (pure ()) $ Map.map (checkType ids) m
 checkType ids (TFunctor t t') = checkType ids t *> checkType ids t'

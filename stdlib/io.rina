@@ -6,12 +6,11 @@ import (
        )
 
 export (
-
+  run_cmd
        )
 
-ar Shell run_cmd : String -> String =
+ar Base run_cmd : String -> maybe<String> =
   words
   [ empty = {=} nothing.
   , cons  = { path = .head, args = .tail, stdin = {=} empty. } shell
   ]
-  force_maybe

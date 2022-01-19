@@ -46,12 +46,23 @@ conv f eq = intercalate ", "
      . map (\(k, v) -> unpack k #Field <> eq#Operator <> f v) 
      . Map.toList
 
+isChr :: Value -> Bool
+isChr (VShort _) = True
+isChr _          = False
+
 renderString :: Map.Map Text Value -> String
 renderString m' = 
       (\(VShort c) -> c) (m' Map.! "head") 
       : case m' Map.! "tail" of
           VCocone ("cons", VCone m'') -> renderString m'' 
           _                           -> ""
+
+renderList :: Map.Map Text Value -> String
+renderList m' = 
+      pShowValue (m' Map.! "head") 
+      <> " :, "#Operator <> case m' Map.! "tail" of
+          VCocone ("cons", VCone m'') -> renderList m'' 
+          _                           -> "empty."#Field
 
 
 pShowValue :: Value -> String
@@ -64,7 +75,9 @@ pShowValue (VExpr x)            = "'" #Operator <> "( " #Parens <> pShowExpr x <
 pShowValue (VType t)            = pShowType t
 pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
 pShowValue (VCocone ("cons"
-           , VCone m))          = ("\"" <> renderString m <> "\"") #Literal
+           , VCone m))
+           | isChr (m Map.! "head")   = ("\"" <> renderString m <> "\"") #Literal
+           | otherwise                = "("#Parens <> renderList m <> ")"#Parens
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field
 pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue " = " m <> " }" #Parens
  

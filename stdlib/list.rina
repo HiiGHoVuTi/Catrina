@@ -5,6 +5,8 @@ import (
 
 export (
   list
+  take
+  drop
        )
 
 ar Cat list : Base -> Base =
@@ -14,4 +16,22 @@ ar Cat list : Base -> Base =
             }
   ]
 
+ar Base take : { xs : list<a>, n : Int } -> list<a> =
+  { is_done = .n == 0, input = .xs, n = .n }
+  @is_done
+    [ true  = {=} empty.
+    , false = @input
+      [ empty = {=} empty.
+      , cons  = .input .head :, { xs = .input .tail, n = .n - 1 } take
+      ]
+    ]
 
+ar Base drop : { xs : list<a>, n : Int } -> list<a> =
+  { is_done = .n == 0, input = .xs, n = .n }
+  @is_done
+    [ true  = .input
+    , false = @input
+      [ empty = {=} empty.
+      , cons  = { xs = .input .tail, n = .n - 1 } drop
+      ]
+    ]

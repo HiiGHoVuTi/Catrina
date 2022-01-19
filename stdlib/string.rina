@@ -1,8 +1,38 @@
 
 import (
-
+  stdlib/list
        )
 
 export (
-
+  words
        )
+
+-- reimplement it with list utility
+ar Base words : String -> list<String> =
+  { to_process = , buffer = empty. } words_
+
+ar Base words_ : { to_process : String, buffer : list<String> } -> list<String> =
+  @to_process
+    [ empty = (.buffer reverse :, empty.)
+    , cons  = { current = .to_process .head, rest = .to_process .tail
+              , buffer = .buffer
+              ; is_whitespace = .current == " " [ cons = .head, empty = 0 ]
+              }
+        @is_whitespace
+          [ true  = .buffer reverse 
+              :, { buffer = empty.
+                 , to_process = .rest
+                 } words_
+          , false = { buffer = .current :, .buffer
+                    , to_process = .rest 
+                    } words_
+          ]
+    ]
+
+ar Base reverse : String -> String = { input = , buffer = empty. } reverse_
+
+ar Base reverse_ : { input : String, buffer : String } -> String =
+  @input
+    [ empty = .buffer
+    , cons  = { input = .input .tail, buffer = .input .head :, .buffer } reverse_
+    ]
