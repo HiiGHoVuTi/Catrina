@@ -5,7 +5,6 @@ module Syntax.Declaration (
 import Data.Text
 import Parsing
 import Syntax.Expr
-import Syntax.Type
 import Text.Parsec
 import Text.Parsec.Token
 

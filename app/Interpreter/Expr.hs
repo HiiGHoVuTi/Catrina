@@ -11,7 +11,6 @@ import Data.Text hiding (map, find, foldl, reverse)
 import Interpreter.BuiltIn
 import Interpreter.Util
 import Syntax.Expr
-import Syntax.Type
 import Types.Category
 
 evalExpr :: Env -> Expr -> Value -> IO Value
