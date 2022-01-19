@@ -64,9 +64,8 @@ operatorsTable =
 
 
 unit' :: Parser Expr
-unit' = Unit <$ braces lexer (oneOf "=" <|> pure '_') 
+unit' = Unit <$ braces lexer (oneOf ":" <|> pure '_') 
     <?> "unit"
-
 
 sequencedCone :: Parser Expr
 sequencedCone = do
@@ -90,12 +89,12 @@ sequencedCone = do
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
 cone = try sequencedCone
-   <|> try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair "=" expr)
+   <|> try (fmap (Cone . Map.fromList) . braces lexer . commaSep1 lexer $ pair ":" expr)
    <|> try (fmap (Cone . tuple)        . braces lexer . commaSep1 lexer $ expr)
    <?> "cone"
 
 cocone :: Parser Expr
-cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair "=" expr)
+cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" expr)
      <|> try (fmap (Cocone . tuple)        . brackets lexer . commaSep1 lexer $ expr)
      <?> "cocone"
 
