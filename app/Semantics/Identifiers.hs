@@ -11,7 +11,6 @@ import Semantics.Context
 import Syntax.Declaration
 import Syntax.Expr
 import Syntax.Program
-import Syntax.Type
 
 identifierInScopeCheck :: Context -> Program -> Either CatrinaError ()
 identifierInScopeCheck 
@@ -31,25 +30,16 @@ checkExpr ids (Cone m)         = Map.foldl' (<*) (pure ()) $ Map.map (checkExpr 
 checkExpr ids (Cocone m)       = Map.foldl' (<*) (pure ()) $ Map.map (checkExpr ids) m
 checkExpr ids (UnaryExpression _ e)     = checkExpr ids e
 checkExpr ids (BinaryExpression _ e e') = checkExpr ids e *> checkExpr ids e'
-checkExpr ids (FunctorApplication t e)  = checkType ids t *> checkExpr ids e
-checkExpr ids (TypeExpr t)     = checkType ids t
+checkExpr ids (FunctorApplication t e)  = checkExpr ids t *> checkExpr ids e
 checkExpr ids (Identifier n)   = checkId ids n
 checkExpr ___ ________________ = pure ()
-
-checkType :: [Text] -> Type -> Either CatrinaError ()
-checkType ids (TArrow t t')   = checkType ids t *> checkType ids t'
-checkType ids (TIdentifier t) = checkId ids t
-checkType ids (TCone m)       = Map.foldl' (<*) (pure ()) $ Map.map (checkType ids) m
-checkType ids (TCocone m)     = Map.foldl' (<*) (pure ()) $ Map.map (checkType ids) m
-checkType ids (TFunctor t t') = checkType ids t *> checkType ids t'
-checkType ___ _______________ = pure ()
 
 checkDeclaration :: [Text] -> Declaration -> Either CatrinaError ()
 checkDeclaration ids (ArrowDeclaration c _ t e) = do
   checkId   ids c
-  checkType ids t
+  checkExpr ids t
   checkExpr ids e
 checkDeclaration ids (ObjectDeclaration c _ t) = do
   checkId   ids c
-  checkType ids t
+  checkExpr ids t
 

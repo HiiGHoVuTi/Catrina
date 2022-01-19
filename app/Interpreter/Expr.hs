@@ -87,10 +87,9 @@ evalExpr env expr' input =
     CoconeConstructor name -> pure (VCocone (name, input))
     ConeAnalysis prop -> pure (analyse prop input)
 
-    TypeExpr type' -> pure (VType type')
-
     FunctorApplication functor mappedExpr ->
       case functor of
+        {-
         TId -> evalExpr env mappedExpr input
         TUnit -> pure VUnit 
         -- NOTE(Maxime): lookup and replace in functor expression
@@ -101,18 +100,23 @@ evalExpr env expr' input =
               (fromType $ getFunction env name') mappedExpr
           in evalExpr env functor' input
         TArrow _ _ -> undefined
-        TFunctor _ _ -> undefined -- FIXME(Maxime)?
+        TFunctor _ _ -> undefined
         -- NOTE(Maxime): {x = a, y = b} F<{x: f, y: g}> -> {x: a F<f>, y: b F<g>}
         TCone typeMap -> let
             VCone vcone = input
             combine v t = evalExpr env (FunctorApplication t mappedExpr) v
             distributed = Map.intersectionWith combine vcone typeMap
            in VCone <$> sequenceA distributed
-        
+
         TCocone typeMap -> let
             VCocone (prop, val) = input
             functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
           in VCocone . (prop, ) <$> evalExpr env functor' val
+        -}
+        Identifier name' -> let
+          functor' = FunctorApplication (getFunction env name') mappedExpr
+                             in evalExpr env functor' input
+        _ -> undefined
 
     BuiltIn name -> executeStd name input
 
