@@ -19,27 +19,47 @@ jobs:
           - os: ubuntu-latest
             artifact_name: rina
             asset_name: rina-linux-amd64
-          # - os: windows-latest
-          #  artifact_name: rina.exe
-          #  asset_name: rina-windows-amd64
+          - os: windows-latest
+            artifact_name: rina.exe
+            asset_name: rina-windows-amd64
           - os: macos-latest
             artifact_name: rina
             asset_name: rina-macos-amd64
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install Nix
-      uses: cachix/install-nix-action@v16
+    
+    - uses: actions/setup-haskell@v1
       with:
-        nix_path: nixpkgs=channel:nixos-unstable
+        ghc-version: '8.10.3'
+        cabal-version: '3.2'
+        
+    - name: Cache
+      uses: actions/cache@v1
+      env:
+        cache-name: cache-cabal
+      with:
+        path: ~/.cabal
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+          
+    - name: Install dependencies
+      run: |
+        cabal update
+        cabal install exe:rina --install-method=copy --overwrite-policy=always --installdir=dist
     - name: Build
-      uses: workflow/nix-shell-action@v3
-      with:
-        script: nix-build
+      run: cabal build
+    - name: Run tests
+      run: cabal test all
+    
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./result/bin/${{ matrix.artifact_name }}
+        file: ./dist/${{ matrix.artifact_name }}
         asset_name: ${{ matrix.asset_name }}
         tag: ${{ github.ref }}
+        overwrite: true
