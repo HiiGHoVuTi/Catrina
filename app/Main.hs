@@ -91,7 +91,7 @@ doTheThing Options {optCommand = ReplCommand{..}} = do
           -- FIXME(Maxime)
           res <- lift $ 
             sequenceA (flip (evalExpr env) VUnit <$> parsed)
-            --`catch` (\x -> (const.pure.Right $ VPlaceholder) (x :: ErrorCall))
+            `catch` (\x -> (const.pure.Right $ VPlaceholder) (x :: ErrorCall))
           case res of
             Left  err -> lift (print err) >> repl (ctx, env)
             Right out -> lift (putStrLn . pShowValue $ out) >> repl (ctx, env)
