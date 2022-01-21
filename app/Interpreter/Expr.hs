@@ -88,33 +88,24 @@ evalExpr env expr' input =
 
     FunctorApplication functor mappedExpr ->
       case functor of
-        {-
-        TId -> evalExpr env mappedExpr input
-        TUnit -> pure VUnit 
-        -- NOTE(Maxime): lookup and replace in functor expression
-        TIdentifier name' -> let
-            fromType (TypeExpr a) = a
-            fromType _            = undefined
-            functor'              = FunctorApplication 
-              (fromType $ getFunction env name') mappedExpr
-          in evalExpr env functor' input
-        TArrow _ _ -> undefined
-        TFunctor _ _ -> undefined
-        -- NOTE(Maxime): {x = a, y = b} F<{x: f, y: g}> -> {x: a F<f>, y: b F<g>}
-        TCone typeMap -> let
-            VCone vcone = input
-            combine v t = evalExpr env (FunctorApplication t mappedExpr) v
-            distributed = Map.intersectionWith combine vcone typeMap
-           in VCone <$> sequenceA distributed
+        Composition []  -> evalExpr env mappedExpr input
+        Composition [x] -> evalExpr env (FunctorApplication x mappedExpr) input
 
-        TCocone typeMap -> let
+        Identifier name' -> let
+          functor' = FunctorApplication (getFunction env name') 
+                   . unwrapVExpr <$> evalExpr env mappedExpr input
+                             in flip (evalExpr env) input =<< functor'
+        Cone typeMap -> let
+          VCone vcone = input
+          combine v t = evalExpr env (FunctorApplication t mappedExpr) v
+          distributed = Map.intersectionWith combine vcone typeMap
+         in VCone <$> sequenceA distributed
+
+        Cocone typeMap -> let
             VCocone (prop, val) = input
             functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
           in VCocone . (prop, ) <$> evalExpr env functor' val
-        -}
-        Identifier name' -> let
-          functor' = FunctorApplication (getFunction env name') mappedExpr
-                             in evalExpr env functor' input
+
         _ -> undefined
 
     BuiltIn name -> executeStd name input
