@@ -3,19 +3,18 @@ module Interpreter.Expr (
   evalExpr
                         ) where
 
--- NOTE(Maxime): implement thunks ?
-
 import Data.List
 import qualified Data.Map as Map 
 import Data.Text hiding (map, find, foldl, reverse)
 import Interpreter.BuiltIn
 import Interpreter.Util
 import Syntax.Expr
+import System.IO.Unsafe
 import Types.Category
 
 evalExpr :: Env -> Expr -> Value -> IO Value
 evalExpr _ expr' VPlaceholder = pure (VExpr expr')
-evalExpr env expr' input = 
+evalExpr env expr' input = unsafeInterleaveIO $
   case expr' of
     Unit -> pure VUnit
     

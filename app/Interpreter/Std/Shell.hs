@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Interpreter.Std.Shell (
-  shell, stdout
+  shell, stdout, unstringify
                              ) where
 
 import qualified Data.Map as Map

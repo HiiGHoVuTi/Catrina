@@ -4,6 +4,7 @@ module Interpreter.BuiltIn (
   Value(..), executeStd
                            ) where
 import qualified Data.Text as T
+import Interpreter.PrettyShow
 import Interpreter.Std
 import Interpreter.Value
 
@@ -12,6 +13,7 @@ executeStd :: T.Text -> Value -> IO Value
 executeStd "id" = pure
 executeStd "shell"  = shell
 executeStd "stdout" = stdout
+executeStd "show_"  = pure.unstringify.pShowValue
 
 executeStd "==" = pure.eq
 executeStd "!=" = pure.neq
