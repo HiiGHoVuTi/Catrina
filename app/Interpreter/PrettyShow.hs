@@ -5,9 +5,9 @@ module Interpreter.PrettyShow (
   pShowValue, (#), Color(..)
                               ) where
 
-import Data.List
+import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Text (Text, unpack)
+import Data.Text (Text, unpack, intercalate)
 import Interpreter.Value
 import Syntax.Expr
 
@@ -41,7 +41,7 @@ escape' Error    = "1;31"
 
 
 conv :: (t -> String) -> String -> Map.Map Text t -> String
-conv f eq = intercalate ", " 
+conv f eq = List.intercalate ", " 
      . map (\(k, v) -> unpack k #Field <> eq#Operator <> f v) 
      . Map.toList
 
@@ -90,7 +90,7 @@ pShowExpr (CharLiteral c)   = show c #Literal
 pShowExpr (UnaryExpression (OtherOp op) e) = unpack op #Operator <> pShowExpr e
 pShowExpr (BinaryExpression (OtherOp op) e1 e2) = "("#Parens <> pShowExpr e1 <> " " <> unpack op #Operator <> " " <> pShowExpr e2 <> ")"#Parens
 pShowExpr (FunctorApplication t e) = pShowExpr t <> " < "#Parens <> pShowExpr e <> " >"#Parens
-pShowExpr (ConeAnalysis l)      = ("@" <> unpack l) #Field
+pShowExpr (ConeAnalysis ls)     = ("@" <> unpack (intercalate ";" ls)) #Field
 pShowExpr (ConeProperty l)      = ("." <> unpack l) #Field
 pShowExpr (CoconeConstructor l) = (unpack l <> ".") #Field
 pShowExpr (BuiltIn t)           = unpack t
