@@ -86,6 +86,16 @@ sequencedCone = do
                         then new Map.! k
                         else ConeProperty k
 
+-- NOTE(Maxime): #(a, b, c)
+listLiteral :: Parser Expr
+listLiteral 
+  =  fmap combineList
+  $  char '#' 
+  *> parens lexer (commaSep lexer expr)
+  where
+    combineList []     = Composition [ Unit, CoconeConstructor "empty" ]
+    combineList (x:xs) = BinaryExpression (OtherOp ":,") x (combineList xs)
+
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
 cone = try sequencedCone
@@ -130,8 +140,9 @@ literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier    lexer)
       <|> FloatLiteral          <$> try (float         lexer)
       <|> IntLiteral            <$> try (natural       lexer)
-      <|> CharLiteral           <$> try (charLiteral   lexer)
+      <|> CharLiteral           <$> try (char '#' *> charLiteral lexer)
       <|> StringLiteral         <$>      stringLiteral lexer
+      <|> listLiteral
       <?> "literal"
 
 operation :: Parser Expr

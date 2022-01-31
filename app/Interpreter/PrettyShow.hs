@@ -59,13 +59,13 @@ renderString m' =
 renderList :: Map.Map Text Value -> String
 renderList m' = 
       pShowValue (m' Map.! "head") 
-      <> " :, "#Operator <> case m' Map.! "tail" of
-          VCocone ("cons", VCone m'') -> renderList m'' 
-          _                           -> "empty."#Field
+      <> case m' Map.! "tail" of
+          VCocone ("cons", VCone m'') -> ", "#Operator <> renderList m'' 
+          _                           -> ""
 
 
 pShowValue :: Value -> String
-pShowValue VUnit                = "{=}"  #CUnit
+pShowValue VUnit                = "{:}"  #CUnit
 pShowValue VPlaceholder         = "Runtime Panic !" #Error
 pShowValue (VInt n)             = show n #Literal
 pShowValue (VFloat x)           = show x #Literal
@@ -75,13 +75,13 @@ pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
 pShowValue (VCocone ("cons"
            , VCone m))
            | isChr (m Map.! "head")   = ("\"" <> renderString m <> "\"") #Literal
-           | otherwise                = "("#Parens <> renderList m <> ")"#Parens
+           | otherwise                = "#("#Parens <> renderList m <> ")"#Parens
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field
-pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue " = " m <> " }" #Parens
+pShowValue (VCone m)            = "{ " #Parens <> conv pShowValue " : " m <> " }" #Parens
  
 pShowExpr :: Expr -> String
 pShowExpr (Composition xs)  = unwords . map pShowExpr $ xs
-pShowExpr Unit              = "{=}" #CUnit
+pShowExpr Unit              = "{:}" #CUnit
 pShowExpr (Identifier i)    = unpack i #Normal
 pShowExpr (FloatLiteral x)  = show x #Literal
 pShowExpr (IntLiteral n)    = show n #Literal
@@ -94,7 +94,7 @@ pShowExpr (ConeAnalysis l)      = ("@" <> unpack l) #Field
 pShowExpr (ConeProperty l)      = ("." <> unpack l) #Field
 pShowExpr (CoconeConstructor l) = (unpack l <> ".") #Field
 pShowExpr (BuiltIn t)           = unpack t
-pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr " = " m <> " }" #Parens
-pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr " = " m <> " ]" #Parens
+pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr " : " m <> " }" #Parens
+pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr " : " m <> " ]" #Parens
 
 
