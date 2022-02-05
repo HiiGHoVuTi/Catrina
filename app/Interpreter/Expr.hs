@@ -66,7 +66,17 @@ evalExpr env expr' input = unsafeInterleaveIO $
         ])
 
     Identifier name -> evalExpr env (getFunction env name) input
+ 
     
+    -- NOTE(Maxime): special case for cones
+    Composition (Cone m:Cone m':xs)
+      | Map.null m -> do
+        new <- evalExpr env (Cone m') input
+        let saved = VCone . Map.union (unwrapVCone input) 
+                  . unwrapVCone $ new
+        evalExpr env (Composition xs) saved
+    
+
     -- NOTE(Maxime): Identity function
     Composition [] -> pure input
     
@@ -76,14 +86,24 @@ evalExpr env expr' input = unsafeInterleaveIO $
     Cone values -> VCone <$> sequenceA (Map.map (flip (evalExpr env) input) values)
 
     -- NOTE(Maxime): can use unsafe due to typecheck
+    -- FIXME(Maxime): wildcards won't save a match that has consumed stuff already
     Cocone mappings -> let 
       VCocone (name, value) = input
-      matched               = mappings Map.! name
+      matched               = 
+        case Map.lookup name mappings of
+          Just a  -> a
+          Nothing -> mappings Map.! ""
      in evalExpr env matched value
 
     ConeProperty prop -> pure (unsafeGet prop input)
     CoconeConstructor name -> pure (VCocone (name, input))
-    ConeAnalysis prop -> pure (analyse prop input)
+    
+    -- NOTE(Maxime): top case violates laws but is impossible
+    ConeAnalysis [] -> pure input
+    ConeAnalysis [prop] -> pure (analyse prop input)
+    ConeAnalysis (p:ps) -> do
+      VCocone (k, v) <- evalExpr env (ConeAnalysis [p]) input
+      VCocone . (k, ) <$> evalExpr env (ConeAnalysis ps) v
 
     FunctorApplication functor mappedExpr ->
       case functor of
@@ -121,6 +141,11 @@ getFunction env name =
 unwrapVExpr :: Value -> Expr
 unwrapVExpr (VExpr e) = e
 unwrapVExpr _         = undefined
+
+-- NOTE(Maxime): same as above
+unwrapVCone :: Value -> Map.Map Text Value
+unwrapVCone (VCone m) = m
+unwrapVCone _         = undefined
 
 -- NOTE(Maxime): error is mostly for debugging purposes
 -- as those would be caught by the typechecker

@@ -5,9 +5,12 @@ module Syntax.Expr (
   OperatorToken(..)
                    ) where
 
+import Data.Function
+import Data.Functor
 import Data.Functor.Identity
+import Data.List
 import qualified Data.Map as Map
-import Data.Text hiding (map, scanl1, zip, reverse)
+import Data.Text hiding (map, scanl1, zip, reverse, transpose, foldl1')
 import Parsing
 import Parsing.Operators
 import Syntax.Common
@@ -33,7 +36,7 @@ data Expr = Unit
           | FunctorApplication Expr Expr
           | ConeProperty Text
           | CoconeConstructor Text
-          | ConeAnalysis Text
+          | ConeAnalysis [Text]
           | BuiltIn Text
   deriving (Show, Eq)
 
@@ -67,13 +70,14 @@ unit' :: Parser Expr
 unit' = Unit <$ braces lexer (oneOf ":" <|> pure '_') 
     <?> "unit"
 
+-- NOTE(Maxime): { a: b, c: d ; a: .a + .c, e: f }
 sequencedCone :: Parser Expr
 sequencedCone = do
   cones <- fmap (map Map.fromList) 
         $ braces    lexer 
         $ semiSep1  lexer 
-        $ commaSep1 lexer 
-        $ pair "=" expr
+        $ commaSep  lexer 
+        $ pair ":" expr
   let reseq = Composition 
             $ map Cone 
             $ scanl1 process cones
@@ -103,16 +107,53 @@ cone = try sequencedCone
    <|> try (fmap (Cone . tuple)        . braces lexer . commaSep1 lexer $ expr)
    <?> "cone"
 
+
+-- NOTE(Maxime): [ just;false : a, just;true : b, nothing; : c ]
+sequencedCocone :: Parser Expr
+sequencedCocone = do
+  cocones <- fmap Map.fromList
+    $ brackets   lexer
+    $ commaSep1  lexer multiPair
+  let reseq = process cocones
+    in pure reseq
+  where
+    multiPair :: Parser ([Text], Expr)
+    multiPair = do
+      name <- map pack <$> semiSep1 lexer (identifier lexer <|> whiteSpace lexer $> "")
+      reservedOp lexer ":"
+      value <- expr
+      pure(name, value)
+
+    process :: Map.Map [Text] Expr -> Expr
+    process m = Map.toList m
+      & map toNested
+      & foldl1' unify
+    
+    toNested :: ([Text], Expr) -> Expr
+    toNested ([ ], v) = v
+    toNested ([k], v) = Cocone $ Map.singleton k v
+    toNested (k:r, v) = Cocone $ Map.singleton k $ toNested (r, v)
+
+    unify :: Expr -> Expr -> Expr
+    unify (Cocone m) (Cocone n) = Cocone (Map.unionWith unify m n)
+    unify _ _ = undefined
+
 cocone :: Parser Expr
-cocone = try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" expr)
+cocone = try sequencedCocone
+     <|> try (fmap (Cocone . Map.fromList) . brackets lexer . commaSep1 lexer $ pair ":" expr)
      <|> try (fmap (Cocone . tuple)        . brackets lexer . commaSep1 lexer $ expr)
      <?> "cocone"
 
 coneProperty :: Parser Expr
 coneProperty = fmap (ConeProperty . pack) $ char '.' *> identifier lexer
 
+sequencedAnalysis :: Parser Expr
+sequencedAnalysis = fmap (ConeAnalysis . map pack) 
+                  $ char '@' *> semiSep1 lexer (identifier lexer)
+
 coneAnalysis :: Parser Expr
-coneAnalysis = fmap (ConeAnalysis . pack) $ char '@' *> identifier lexer
+coneAnalysis = try sequencedAnalysis
+           <|> fmap (ConeAnalysis . pure . pack) (char '@' *> identifier lexer)
 
 -- FIXME(Maxime): not only letter
 coconeConstructor :: Parser Expr
