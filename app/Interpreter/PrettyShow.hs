@@ -72,8 +72,8 @@ pShowValue (VFloat x)           = show x #Literal
 pShowValue (VShort c)           = show c #Literal
 pShowValue (VExpr x)            = "'" #Operator <> "( " #Parens <> pShowExpr x <> " )" #Parens
 pShowValue (VCocone (l, VUnit)) = (unpack l <> ".") #Field
-pShowValue (VCocone ("cons"
-           , VCone m))
+pShowValue ( VCocone ("cons"
+           , VCone m ))
            | isChr (m Map.! "head")   = ("\"" <> renderString m <> "\"") #Literal
            | otherwise                = "#("#Parens <> renderList m <> ")"#Parens
 pShowValue (VCocone (l, v))     = pShowValue v <> " " <> (unpack l <> ".") #Field

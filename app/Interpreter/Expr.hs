@@ -4,6 +4,7 @@ module Interpreter.Expr (
                         ) where
 
 import Data.List
+import Data.Function
 import qualified Data.Map as Map 
 import Data.Text hiding (map, find, foldl, reverse)
 import Interpreter.BuiltIn
@@ -11,6 +12,9 @@ import Interpreter.Util
 import Syntax.Expr
 import System.IO.Unsafe
 import Types.Category
+
+import Debug.Pretty.Simple
+
 
 evalExpr :: Env -> Expr -> Value -> IO Value
 evalExpr _ expr' VPlaceholder = pure (VExpr expr')
@@ -34,6 +38,12 @@ evalExpr env expr' input = unsafeInterleaveIO $
 
     UnaryExpression (OtherOp "'") liftedExpr -> pure (VExpr liftedExpr)
 
+    UnaryExpression (OtherOp ",'") a -> flip pTraceShow undefined $
+      Cone . Map.fromList $
+        [ ("_1", a)
+        , ("_2", Composition [])
+        ]
+
     UnaryExpression (OtherOp name) opr -> evalExpr env 
       (getFunction env name)    -- NOTE(Maxime): Unaries are just functions 
       =<<
@@ -54,6 +64,7 @@ evalExpr env expr' input = unsafeInterleaveIO $
                    ]
         , CoconeConstructor "cons"
         ]) input
+
 
     -- NOTE(Maxime): (a + b) f --> f a + f b --> { f a, f b } (+)
     BinaryExpression (OtherOp name) lhs rhs -> 
@@ -86,14 +97,10 @@ evalExpr env expr' input = unsafeInterleaveIO $
     Cone values -> VCone <$> sequenceA (Map.map (flip (evalExpr env) input) values)
 
     -- NOTE(Maxime): can use unsafe due to typecheck
-    -- FIXME(Maxime): wildcards won't save a match that has consumed stuff already
-    Cocone mappings -> let 
-      VCocone (name, value) = input
-      matched               = 
-        case Map.lookup name mappings of
-          Just a  -> a
-          Nothing -> mappings Map.! ""
-     in evalExpr env matched value
+    Cocone mappings -> 
+      case input of
+        VCocone (name, value) -> evalExpr env (mappings Map.! name) value
+        w -> pTraceShow w undefined
 
     ConeProperty prop -> pure (unsafeGet prop input)
     CoconeConstructor name -> pure (VCocone (name, input))
@@ -111,9 +118,9 @@ evalExpr env expr' input = unsafeInterleaveIO $
         Composition [x] -> evalExpr env (FunctorApplication x mappedExpr) input
 
         Identifier name' -> let
-          functor' = FunctorApplication (getFunction env name') 
-                   . unwrapVExpr <$> evalExpr env mappedExpr input
-                             in flip (evalExpr env) input =<< functor'
+          functor' = FunctorApplication (getFunction env name') . unwrapVExpr <$> evalExpr env mappedExpr input
+                            in flip (evalExpr env) input =<< functor'
+
         Cone typeMap -> let
           VCone vcone = input
           combine v t = evalExpr env (FunctorApplication t mappedExpr) v
@@ -125,7 +132,7 @@ evalExpr env expr' input = unsafeInterleaveIO $
             functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
           in VCocone . (prop, ) <$> evalExpr env functor' val
 
-        _ -> undefined
+        a -> pTraceShow (a, mappedExpr) undefined
 
     BuiltIn name -> executeStd name input
 

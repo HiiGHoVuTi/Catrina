@@ -53,7 +53,7 @@ otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 -- FIXME(Maxime): Allow any op but still keep precedence
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
-  [ [otherPrefix "'"]
+  [ [otherPrefix "'", otherPrefix ",'"]
   , [otherPrefix "-"]
   , [otherBinop  "*" AssocLeft , otherBinop  "/" AssocLeft]
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]

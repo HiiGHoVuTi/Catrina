@@ -30,7 +30,6 @@ executeStd ">="  = pure.geq
 executeStd "<="  = pure.leq
 
 -- Rest
--- FIXME(Maxime): actually use @@single c *> identifier@@
 executeStd name = const $ error 
                         $ T.unpack ("Can't find " `T.append` name)
 

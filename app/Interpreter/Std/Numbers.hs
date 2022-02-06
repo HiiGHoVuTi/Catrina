@@ -17,7 +17,7 @@ add (VCone m) = f (m ! "_1") (m ! "_2")
   where
     f (VInt   _1) (VInt _2)   = VInt   (_1 + _2)
     f (VFloat _1) (VFloat _2) = VFloat (_1 + _2)
-    f a           _           = pTraceShow a undefined
+    f a           b           = pTraceShow (a,b) undefined
 -- NOTE(Maxime): When concepts/typeclasses are introduced, add any num
 add _ = undefined
   
