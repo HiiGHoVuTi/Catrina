@@ -10,7 +10,7 @@ import Data.Functor
 import Data.Functor.Identity
 import Data.List
 import qualified Data.Map as Map
-import Data.Text hiding (map, scanl1, zip, reverse, transpose, foldl1')
+import Data.Text hiding (map, scanl1, zip, reverse, transpose, foldl1', foldr)
 import Parsing
 import Parsing.Operators
 import Syntax.Common
@@ -53,7 +53,7 @@ otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 -- FIXME(Maxime): Allow any op but still keep precedence
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
-  [ [otherPrefix "'", otherPrefix ",'"]
+  [ [otherPrefix "'", otherPrefix "(*)"]
   , [otherPrefix "-"]
   , [otherBinop  "*" AssocLeft , otherBinop  "/" AssocLeft]
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
@@ -90,15 +90,35 @@ sequencedCone = do
                         then new Map.! k
                         else ConeProperty k
 
+data StringLiteralPart = StringPart String | VariablePart Expr
+
+combineList :: [Expr] -> Expr
+combineList = foldr 
+  (BinaryExpression (OtherOp ":,")) 
+  (Composition [ Unit, CoconeConstructor "empty" ])
+
+makeStringLit :: Text -> Expr
+makeStringLit = convert . parse parser ""
+  where
+    parser :: Parser [StringLiteralPart]
+    parser = many $ 
+                 StringPart <$> many1 (noneOf "$")
+        <|> fmap VariablePart   (char '$' *> char '(' *> expr <* char ')')
+      
+    convert :: Either ParseError [StringLiteralPart] -> Expr
+    convert (Left e) = error $ show e
+    convert (Right xs) = (\x -> Composition [x, Identifier "strconcat"]) 
+      . combineList $ map toExpr xs
+
+    toExpr (StringPart s)   = StringLiteral s
+    toExpr (VariablePart e) = Composition [e, Identifier "show"]
+
 -- NOTE(Maxime): #(a, b, c)
 listLiteral :: Parser Expr
 listLiteral 
   =  fmap combineList
   $  char '#' 
   *> parens lexer (commaSep lexer expr)
-  where
-    combineList []     = Composition [ Unit, CoconeConstructor "empty" ]
-    combineList (x:xs) = BinaryExpression (OtherOp ":,") x (combineList xs)
 
 -- NOTE(Maxime): { a = b, c = d } or { a, b }
 cone :: Parser Expr
@@ -182,7 +202,7 @@ literal = Identifier   . pack   <$> try (identifier    lexer)
       <|> FloatLiteral          <$> try (float         lexer)
       <|> IntLiteral            <$> try (natural       lexer)
       <|> CharLiteral           <$> try (char '#' *> charLiteral lexer)
-      <|> StringLiteral         <$>      stringLiteral lexer
+      <|> makeStringLit . pack  <$>      stringLiteral lexer
       <|> listLiteral
       <?> "literal"
 

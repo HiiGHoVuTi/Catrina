@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Interpreter.PrettyShow (
-  pShowValue, (#), Color(..)
+  showValue, pShowValue, (#), Color(..)
                               ) where
 
 import qualified Data.List as List
@@ -97,4 +97,10 @@ pShowExpr (BuiltIn t)           = unpack t
 pShowExpr (Cone m)              = "{ " #Parens <> conv pShowExpr " : " m <> " }" #Parens
 pShowExpr (Cocone m)            = "[ " #Parens <> conv pShowExpr " : " m <> " ]" #Parens
 
-
+showValue :: Value -> String
+showValue (VInt   i) = show i
+showValue (VFloat x) = show x
+showValue ( VCocone ("cons"
+           , VCone m ))
+          | isChr (m Map.! "head") = renderString m
+showValue _ = error "WIP"

@@ -14,6 +14,7 @@ executeStd "id" = pure
 executeStd "shell"  = shell
 executeStd "stdout" = stdout
 executeStd "show_"  = pure.unstringify.pShowValue
+executeStd "show"   = pure.unstringify.showValue
 
 executeStd "==" = pure.eq
 executeStd "!=" = pure.neq

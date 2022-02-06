@@ -16,8 +16,37 @@ import Types.Category
 import Debug.Pretty.Simple
 
 
+composeList :: Env -> [Expr] -> Expr
+composeList e = foldl (composeE e) (Composition [])
+
+composeE :: Env -> Expr -> Expr -> Expr
+
+composeE c (Identifier i) b   = composeE c (getFunction c i) b
+composeE c a   (Identifier i) = composeE c a (getFunction c i)
+composeE _ Unit _             = Unit
+composeE _ (Composition []) b = b
+composeE _ a (Composition []) = a
+composeE c (Composition xs) (Composition ys) = composeList c $ xs ++ ys
+composeE c a (Composition xs) = composeList c $ a : xs
+composeE c (Composition xs) b = composeList c $ xs ++ pure b
+composeE c (Cone   ms) b = ms
+  & Map.map (flip (composeE c) b)
+  & Map.mapWithKey (\k e -> Composition [ ConeProperty k, e ])
+  & Cone
+composeE c (Cocone ms) b = ms
+  & Map.map (flip (composeE c) b)
+  & Map.mapWithKey (\k e -> Composition [ e, CoconeConstructor k ])
+  & Cocone
+composeE c (BinaryExpression op e1 e2) b
+  = BinaryExpression op (composeE c e1 b) (composeE c e2 b)
+composeE _ (UnaryExpression (OtherOp "'") e) _ = e
+composeE c (FunctorApplication lhs rhs) b = FunctorApplication lhs (composeE c rhs b)
+composeE _ a b = Composition [a, b]
+-- composeE _ a b = pTraceShow (a, b) undefined
+
 evalExpr :: Env -> Expr -> Value -> IO Value
 evalExpr _ expr' VPlaceholder = pure (VExpr expr')
+evalExpr c e    (VExpr e')    = pure.VExpr $ composeE c e e'
 evalExpr env expr' input = unsafeInterleaveIO $
   case expr' of
     Unit -> pure VUnit
@@ -112,25 +141,34 @@ evalExpr env expr' input = unsafeInterleaveIO $
       VCocone (k, v) <- evalExpr env (ConeAnalysis [p]) input
       VCocone . (k, ) <$> evalExpr env (ConeAnalysis ps) v
 
-    FunctorApplication functor mappedExpr ->
-      case functor of
+    -- TODO(Maxime): fix functor application
+    FunctorApplication functor mappedExpr -> let
+        unwrapped = unwrapVExpr <$> evalExpr env mappedExpr input
+        rewrapped = UnaryExpression (OtherOp "'") <$> unwrapped
+      in case functor of
         Composition []  -> evalExpr env mappedExpr input
-        Composition [x] -> evalExpr env (FunctorApplication x mappedExpr) input
+        Composition [x] -> flip (evalExpr env) input . FunctorApplication x =<< rewrapped
 
         Identifier name' -> let
-          functor' = FunctorApplication (getFunction env name') . unwrapVExpr <$> evalExpr env mappedExpr input
+          functor' = FunctorApplication (getFunction env name') <$> rewrapped
                             in flip (evalExpr env) input =<< functor'
 
         Cone typeMap -> let
           VCone vcone = input
-          combine v t = evalExpr env (FunctorApplication t mappedExpr) v
+          combine v (UnaryExpression (OtherOp "(*)") t) =
+            flip (evalExpr env) v . FunctorApplication t =<< unwrapped
+          combine v t = flip (evalExpr env) v . FunctorApplication t =<< rewrapped
           distributed = Map.intersectionWith combine vcone typeMap
          in VCone <$> sequenceA distributed
 
         Cocone typeMap -> let
             VCocone (prop, val) = input
-            functor'            = FunctorApplication (typeMap Map.! prop) mappedExpr
-          in VCocone . (prop, ) <$> evalExpr env functor' val
+            functor'            = 
+              case pTraceShowId (typeMap Map.! prop) of
+                UnaryExpression (OtherOp "(*)") t 
+                  -> FunctorApplication t <$> unwrapped 
+                t -> FunctorApplication t <$> rewrapped
+          in VCocone . (prop, ) <$> (flip (evalExpr env) val =<< functor')
 
         a -> pTraceShow (a, mappedExpr) undefined
 

@@ -22,7 +22,7 @@ baseIdentifiers =
   -- Types
   , "String", "Int", "Float", "Char"
   -- Built-Ins
-  , "shell", "stdout", "id"
+  , "shell", "stdout", "id", "show"
   ]
 
 -- FIXME(Maxime): inputs
