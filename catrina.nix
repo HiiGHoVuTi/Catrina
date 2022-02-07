@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, haskeline, lib, mtl
+{ mkDerivation, base, containers, deepseq, haskeline, lib, mtl
 , optparse-applicative, parsec, pretty-simple, process, text
 , transformers
 }:
@@ -9,7 +9,7 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    base containers haskeline mtl optparse-applicative parsec
+    base containers deepseq haskeline mtl optparse-applicative parsec
     pretty-simple process text transformers
   ];
   description = "Catrina (rina for short) is a categorical programming language";

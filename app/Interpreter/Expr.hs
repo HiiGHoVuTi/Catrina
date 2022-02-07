@@ -15,7 +15,7 @@ import Types.Category
 
 import Debug.Pretty.Simple
 
-
+  {-
 composeList :: Env -> [Expr] -> Expr
 composeList e = foldl (composeE e) (Composition [])
 
@@ -43,10 +43,12 @@ composeE _ (UnaryExpression (OtherOp "'") e) _ = e
 composeE c (FunctorApplication lhs rhs) b = FunctorApplication lhs (composeE c rhs b)
 composeE _ a b = Composition [a, b]
 -- composeE _ a b = pTraceShow (a, b) undefined
+  -}
+
 
 evalExpr :: Env -> Expr -> Value -> IO Value
 evalExpr _ expr' VPlaceholder = pure (VExpr expr')
-evalExpr c e    (VExpr e')    = pure.VExpr $ composeE c e e'
+-- evalExpr c e    (VExpr e')    = pure.VExpr $ composeE c e e'
 evalExpr env expr' input = unsafeInterleaveIO $
   case expr' of
     Unit -> pure VUnit

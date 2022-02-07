@@ -1,16 +1,18 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings,DeriveGeneric, DeriveAnyClass #-}
 
 module Syntax.Expr (
   Expr(..), expr,
   OperatorToken(..)
                    ) where
 
+import Control.DeepSeq
 import Data.Function
 import Data.Functor
 import Data.Functor.Identity
 import Data.List
 import qualified Data.Map as Map
 import Data.Text hiding (map, scanl1, zip, reverse, transpose, foldl1', foldr)
+import GHC.Generics (Generic)
 import Parsing
 import Parsing.Operators
 import Syntax.Common
@@ -19,7 +21,7 @@ import Text.Parsec.Token
 import Text.Parsec.Expr
 
 newtype OperatorToken = OtherOp Text
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 data Expr = Unit
           | Composition [Expr]
@@ -38,7 +40,7 @@ data Expr = Unit
           | CoconeConstructor Text
           | ConeAnalysis [Text]
           | BuiltIn Text
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, NFData)
 
 otherPrefix :: String -> Operator Text () Identity Expr
 otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))

@@ -3,6 +3,7 @@
 module Main where
 
 import Control.Applicative
+import Control.DeepSeq
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
@@ -37,7 +38,7 @@ loadProgram :: String -> IO (Either CatrinaError (Context, Program))
 loadProgram path = do
   fileContents <- openFile path ReadMode >>= hGetContents
   let 
-    parsed  = mapBoth ParserError id 
+    parsed  = mapBoth (ParserError .pack.show) id 
         $ parse program path
         $ pack fileContents
   -- FIXME(Maxime): monad gymnastics
@@ -87,10 +88,11 @@ doTheThing Options {optCommand = ReplCommand{..}} = do
         Just i    -> do
           let
             -- FIXME(Maxime): semantic analysis on programs too
-            parsed  = mapBoth ParserError id $ parse (expr <* eof) "repl" $ pack i
+            parsed  = mapBoth (ParserError .pack.show) id 
+              $ parse (expr <* eof) "repl" $ pack i
           -- FIXME(Maxime)
           res <- lift $ 
-            sequenceA (flip (evalExpr env) VUnit <$> parsed)
+            (sequenceA (flip (evalExpr env) VUnit <$> parsed) >>= evaluate.force)
             `catch` (\x -> (const.pure.Right $ VPlaceholder) (x :: SomeException))
           case res of
             Left  err -> lift (print err) >> repl (ctx, env)
