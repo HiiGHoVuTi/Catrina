@@ -4,7 +4,6 @@ module Interpreter.Expr (
                         ) where
 
 import Data.List
-import Data.Function
 import qualified Data.Map as Map 
 import Data.Text hiding (map, find, foldl, reverse)
 import Interpreter.BuiltIn
@@ -110,14 +109,13 @@ evalExpr env expr' input = unsafeInterleaveIO $
     Identifier name -> evalExpr env (getFunction env name) input
  
     
-    -- NOTE(Maxime): special case for cones
+    -- NOTE(Maxime): special case for cones, {xs} {; ys} == {xs ; ys}
     Composition (Cone m:Cone m':xs)
       | Map.null m -> do
-        new <- evalExpr env (Cone m') input
-        let saved = VCone . Map.union (unwrapVCone input) 
-                  . unwrapVCone $ new
+        old <- evalExpr env (Cone m') input
+        let saved = VCone . Map.union (unwrapVCone old) 
+                  . unwrapVCone $ input
         evalExpr env (Composition xs) saved
-    
 
     -- NOTE(Maxime): Identity function
     Composition [] -> pure input

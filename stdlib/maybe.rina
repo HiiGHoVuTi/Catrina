@@ -9,14 +9,9 @@ export (
   maybe_pure
        )
 
-ob Base MaybeInt =
-  [ nothing : {}
-  , just    : Int
-  ]
-
 ar Cat maybe : Base -> Base =
   [ nothing : {}
-  , just    : 
+  , just    : (*)
   ]
 
 -- monad definition (pre-typeclasses)

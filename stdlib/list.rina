@@ -6,12 +6,17 @@ import (
 export (
   list
   take
+  take_while
   drop
+  drop_while
+  lfold
+  lconcat
+  strconcat
        )
 
 ar Cat list : Base -> Base =
   [ empty : {}
-  , cons  : { head :
+  , cons  : { head : (*)
             , tail : list
             }
   ]
@@ -26,6 +31,18 @@ ar Base take : { xs : list<a>, n : Int } -> list<a> =
       ]
     ]
 
+ar Base take_while : { xs: list<a>, predicate: a -> Bool } =
+  @xs
+  [ empty: {}empty.
+  , cons : 
+    {; continue_taking: .predicate $ .xs .head }
+    @continue_taking
+      [ false: {}empty.
+      , true : .xs .head :, {; xs: .xs .tail } take_while
+      ]
+  ]
+
+
 ar Base drop : { xs : list<a>, n : Int } -> list<a> =
   { is_done: .n == 0, input: .xs, n: .n }
   @is_done
@@ -35,3 +52,36 @@ ar Base drop : { xs : list<a>, n : Int } -> list<a> =
       , cons : { xs: .input .tail, n: .n - 1 } drop
       ]
     ]
+
+ar Base drop_while : { xs: list<a>, predicate: a -> Bool } =
+  @xs
+  [ empty: {}empty.
+  , cons : 
+    {; continue_dropping: .predicate $ .xs .head }
+    @continue_dropping
+      [ true : {; xs: .xs .tail } drop_while
+      , false: .xs .head :, .xs .tail
+      ]
+  ]
+
+ar Base lconcat : { list<a>, list<a> } -> list<a> =
+  @_1;_2
+  [ empty;empty: {}empty.
+  , empty;cons : ._2 cons.
+  , cons ;empty: ._1 cons.
+  , cons ;cons : ._1 .head :, { ._1 .tail , ._2 cons. } lconcat
+  ]
+
+ar Base lfold : { elems: list<a>, initial: b, combine: { old: b, new: a } -> b } -> b =
+  @elems
+  [ empty: .initial
+  , cons : { elems: .elems .tail
+           , combine: .combine
+           , initial: .combine $ { old: .initial, new: .elems .head }
+           } lfold
+  ]
+
+ar Base strconcat : a =
+  { elems: , initial: {}empty., combine: '{.old, .new} lconcat }
+  lfold
+

@@ -4,13 +4,11 @@ import (
        )
 
 export (
-  -- run_cmd
+  run_cmd
        )
 
-{- NOTE(Maxime): uncomment when words is back in String
 ar Base run_cmd : String -> maybe<String> =
   words
   [ empty : {} nothing.
   , cons  : { path : .head, args : .tail, stdin : {} empty. } shell
   ]
--}

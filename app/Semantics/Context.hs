@@ -20,7 +20,7 @@ baseIdentifiers :: [Text]
 baseIdentifiers =
   [ "Base", "Cat", "Fun", "Shell"
   -- Types
-  , "String", "Int", "Float", "Char"
+  , "String", "Int", "Float", "Char", "Bool"
   -- Built-Ins
   , "shell", "stdout", "id", "show"
   ]

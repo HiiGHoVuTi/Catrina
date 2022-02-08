@@ -5,6 +5,7 @@ import (
 
 export (
   words
+  strconcat
        )
 
 ar Base reverse : String -> String = { input: , buffer: empty. } reverse_
@@ -14,3 +15,11 @@ ar Base reverse_ : { input : String, buffer : String } -> String =
     [ empty: .buffer
     , cons : { input: .input .tail, buffer: .input .head :, .buffer } reverse_
     ]
+
+ar Base words : String -> list<String> =
+  { predicate: '(== #' '), xs:  } drop_while
+  [ empty: {}empty.
+  , cons : 
+    { xs: .head :, .tail, predicate: '(!= #' ') }
+    ( take_while :, drop_while words )
+  ]
