@@ -46,6 +46,7 @@ executable rina
                     , Types
                     , Types.Category
                     , Types.Categories.Base
+                    , Types.Checker
                     --
                     , Interpreter
                     , Interpreter.Util
@@ -73,6 +74,8 @@ executable rina
                     , optparse-applicative
                     , haskeline
                     , deepseq
+                    , microlens
+                    , generic-lens
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options:      -Wall

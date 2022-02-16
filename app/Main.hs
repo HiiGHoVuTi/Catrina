@@ -16,7 +16,7 @@ import Syntax
 import System.Console.Haskeline
 import System.IO
 import Text.Parsec hiding (try, optional)
-import Text.Pretty.Simple
+import Types.Checker
 
 
 -- NOTE(Maxime): newtype is only here because linter is mad at me
@@ -46,8 +46,10 @@ loadProgram path = do
   let
     context = createContext <$> loaded
     tests   = join $ runAllChecks <$> context <*> loaded
-  pure $ tests *> unifyTuple (context, loaded)
+    typeCh  = typecheckProgram =<< loaded
+  pure $ tests *> typeCh *> unifyTuple (context, loaded)
     where
+      {-
       getName :: Declaration -> Text
       getName (ArrowDeclaration _ n _ _) = n
       getName (ObjectDeclaration _ n _ ) = n
@@ -56,6 +58,7 @@ loadProgram path = do
       filterDecls (Program i exports' decls) 
         = Program i exports' 
         $ filter (flip elem exports' . getName) decls
+      -}
 
       concatDecls :: Program -> Program -> Program
       concatDecls (Program i e xs) (Program _ _ ys) = Program i e (xs++ys)

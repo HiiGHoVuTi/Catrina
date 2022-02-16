@@ -24,6 +24,8 @@ data CatrinaError
   | ParserError Text
   | IdentifierNotInScope Text
   | ForbiddenConstruction Text
+  | TypeNotMatching
+  | TypeNotFound
   deriving (Generic)
 
 instance NFData CatrinaError
@@ -34,3 +36,5 @@ instance Show CatrinaError where
   show (ParserError p)     = unpack p
   show (IdentifierNotInScope n) = "Identifier "#Error <> unpack n #Field <> " not in scope !"#Error
   show (ForbiddenConstruction n) = "Forbidden construction with " #Error <> unpack n #Field 
+  show TypeNotMatching = "Type not matching -- a better error is on its way"
+  show TypeNotFound = "Type not found -- a better error is on its way"

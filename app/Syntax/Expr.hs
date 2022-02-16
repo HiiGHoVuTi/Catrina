@@ -1,8 +1,8 @@
-{-# LANGUAGE OverloadedStrings,DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings,DeriveGeneric, DeriveAnyClass, PatternSynonyms #-}
 
 module Syntax.Expr (
   Expr(..), expr,
-  OperatorToken(..)
+  OperatorToken(..), pattern Arrow
                    ) where
 
 import Control.DeepSeq
@@ -20,8 +20,11 @@ import Text.Parsec
 import Text.Parsec.Token
 import Text.Parsec.Expr
 
+pattern Arrow :: Expr -> Expr -> Expr
+pattern Arrow t1 t2 = BinaryExpression (OtherOp "->") t1 t2
+
 newtype OperatorToken = OtherOp Text
-  deriving (Show, Eq, Generic, NFData)
+  deriving (Show, Eq, Generic, NFData, Ord)
 
 data Expr = Unit
           | Composition [Expr]
@@ -40,7 +43,7 @@ data Expr = Unit
           | CoconeConstructor Text
           | ConeAnalysis [Text]
           | BuiltIn Text
-  deriving (Show, Eq, Generic, NFData)
+  deriving (Show, Eq, Generic, NFData, Ord)
 
 otherPrefix :: String -> Operator Text () Identity Expr
 otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))
