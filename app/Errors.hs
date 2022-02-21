@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleInstances #-}
 
 module Errors (
   CatrinaError(..),
@@ -29,6 +29,10 @@ data CatrinaError
   deriving (Generic)
 
 instance NFData CatrinaError
+
+
+instance MonadFail (Either CatrinaError) where
+  fail = const $ Left TypeNotFound
 
 -- NOTE(Maxime): Show "laws" disrespected on purpose for now
 instance Show CatrinaError where

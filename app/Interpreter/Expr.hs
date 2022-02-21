@@ -172,6 +172,13 @@ evalExpr env expr' input = unsafeInterleaveIO $
 
         a -> pTraceShow (a, mappedExpr) undefined
 
+    -- TODO(Maxime): refactor this stuff
+    BuiltIn "lconcat" -> evalExpr env (Composition [ConeAnalysis ["_1","_2"],Cocone (Map.fromList [("cons",Cocone (Map.fromList [("cons",BinaryExpression (OtherOp ":,") (Composition [ConeProperty "_1",ConeProperty "head"]) (Composition [Cone (Map.fromList [("_1",Composition [ConeProperty "_1",ConeProperty "tail"]),("_2",Composition [ConeProperty "_2",CoconeConstructor "cons"])]),Identifier "lconcat"])),("empty",Composition [ConeProperty "_1",CoconeConstructor "cons"])])),("empty",Cocone (Map.fromList [("cons",Composition [ConeProperty "_2",CoconeConstructor "cons"]),("empty",Composition [Unit,CoconeConstructor "empty"])]))])]) input
+    
+    BuiltIn "lfold" -> evalExpr env (Composition [ConeAnalysis ["elems"],Cocone (Map.fromList [("cons",Composition [Composition [Cone (Map.fromList [("combine",Composition [ConeProperty "combine"]),("elems",Composition [ConeProperty "elems",ConeProperty "tail"]),("initial",BinaryExpression (OtherOp "$") (Composition [ConeProperty "combine"]) (Composition [Composition [Cone (Map.fromList [("new",Composition [ConeProperty "elems",ConeProperty "head"]),("old",Composition [ConeProperty "initial"])])]]))])],Identifier "lfold"]),("empty",Composition [ConeProperty "initial"])])]) input
+
+    BuiltIn "strconcat" -> evalExpr env (Composition [Composition [Cone (Map.fromList [("combine",UnaryExpression (OtherOp "'") (Composition [Cone (Map.fromList [("_1",Composition [ConeProperty "old"]),("_2",Composition [ConeProperty "new"])]),Identifier "lconcat"])),("elems",Composition []),("initial",Composition [Unit,CoconeConstructor "empty"])])],Identifier "lfold"]) input
+  
     BuiltIn name -> executeStd name input
 
 getFunction :: Env -> Text -> Expr

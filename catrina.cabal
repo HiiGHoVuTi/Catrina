@@ -76,6 +76,8 @@ executable rina
                     , deepseq
                     , microlens
                     , generic-lens
+                    , recursion-schemes
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options:      -Wall
+                      -ddump-splices

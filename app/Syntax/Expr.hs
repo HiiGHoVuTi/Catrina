@@ -1,11 +1,12 @@
-{-# LANGUAGE OverloadedStrings,DeriveGeneric, DeriveAnyClass, PatternSynonyms #-}
+{-# LANGUAGE OverloadedStrings,DeriveGeneric, DeriveAnyClass, PatternSynonyms, DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, TypeFamilies #-}
 
 module Syntax.Expr (
-  Expr(..), expr,
+  Expr(..), ExprF(..), expr,
   OperatorToken(..), pattern Arrow
                    ) where
 
 import Control.DeepSeq
+import Data.Functor.Foldable.TH (makeBaseFunctor, MakeBaseFunctor (makeBaseFunctorWith))
 import Data.Function
 import Data.Functor
 import Data.Functor.Identity
@@ -26,6 +27,7 @@ pattern Arrow t1 t2 = BinaryExpression (OtherOp "->") t1 t2
 newtype OperatorToken = OtherOp Text
   deriving (Show, Eq, Generic, NFData, Ord)
 
+
 data Expr = Unit
           | Composition [Expr]
           | Identifier   Text
@@ -44,6 +46,8 @@ data Expr = Unit
           | ConeAnalysis [Text]
           | BuiltIn Text
   deriving (Show, Eq, Generic, NFData, Ord)
+
+makeBaseFunctor ''Expr
 
 otherPrefix :: String -> Operator Text () Identity Expr
 otherPrefix name = prefix name (UnaryExpression (OtherOp $ pack name))
