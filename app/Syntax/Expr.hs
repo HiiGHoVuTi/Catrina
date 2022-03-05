@@ -2,11 +2,11 @@
 
 module Syntax.Expr (
   Expr(..), ExprF(..), expr,
-  OperatorToken(..), pattern Arrow
+  OperatorToken(..), pattern Arrow, (-->)
                    ) where
 
 import Control.DeepSeq
-import Data.Functor.Foldable.TH (makeBaseFunctor, MakeBaseFunctor (makeBaseFunctorWith))
+import Data.Functor.Foldable.TH (makeBaseFunctor)
 import Data.Function
 import Data.Functor
 import Data.Functor.Identity
@@ -23,6 +23,9 @@ import Text.Parsec.Expr
 
 pattern Arrow :: Expr -> Expr -> Expr
 pattern Arrow t1 t2 = BinaryExpression (OtherOp "->") t1 t2
+
+(-->) :: Expr -> Expr -> Expr
+(-->) = Arrow
 
 newtype OperatorToken = OtherOp Text
   deriving (Show, Eq, Generic, NFData, Ord)

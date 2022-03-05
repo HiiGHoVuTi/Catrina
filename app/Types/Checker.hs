@@ -79,7 +79,7 @@ isSubtype i@(Identifier t) b
   | T.toLower t == t = do
     subs <- checkSubtypeMap i
     case subs of
-      Nothing -> quit TypeNotFound -- cannot happen
+      Nothing -> quit TypeNotFound -- cannot happen ; FIXME(Maxime): does happen.
       Just sb -> traverse_ (`isSubtype` b) sb
     modify $ field @"surtypesMap" %~ Map.update (Just. Set.insert b) i
     modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert i) b
@@ -107,6 +107,14 @@ isSubtype (Cone m) (Cone m') = do
 
   sequence_ $ Map.intersectionWith isSubtype m m'
 
+-- coproducts
+isSubtype (Cocone m) (Cocone m') = do
+  if all (`Map.member` m') (Map.keys m)
+     then pure ()
+     else quit TypeNotMatching
+
+  sequence_ $ Map.intersectionWith isSubtype m' m
+
 -- literals
 isSubtype (IntLiteral   _) (_ `Arrow` t) = Identifier "Int"   `isSubtype` t
 isSubtype (FloatLiteral _) (_ `Arrow` t) = Identifier "Float" `isSubtype` t
@@ -116,10 +124,10 @@ isSubtype (CharLiteral  _) (_ `Arrow` t) = Identifier "Char"  `isSubtype` t
 isSubtype a b
   | a == b = pure ()
 
--- last resort, recursive traversal of the subtype map
+-- last resort, recursive traversal of the surtype map
 isSubtype a b = do
   sursM <- checkSurtypeMap a
-  case sursM of
+  case pTraceShow (a, b) sursM of
     Nothing   -> quit TypeNotMatching
     Just surs -> anyIsSubtype surs b
  
@@ -146,7 +154,12 @@ foldTopType :: Expr -> CheckerM Expr
 foldTopType = cataA go
   where
     go :: ExprF (CheckerM Expr) -> CheckerM Expr
-    go (CompositionF [x]) = foldTopType =<< x
+    go (CompositionF [x]) = x -- foldTopType =<< x
+    go (IdentifierF name) = do
+      scope <- get <&> typeScope
+      pure $ if name `Map.member` scope
+         then scope Map.! name
+         else Identifier name
     go other              = embed <$> sequence other
 
 
@@ -154,14 +167,22 @@ foldBottomType :: Expr -> CheckerM Expr
 -- TODO(Maxime): add other folds (products and coproducts)
 foldBottomType = cataA go
   where
-    go (CompositionF [x]) = x
-    
     go (CompositionF thingies) = do
-      (a `Arrow` b : d `Arrow` c : xs) <- sequence thingies
-      -- b < d
-      b `isSubtype` d
-      foldBottomType $ Composition $ a `Arrow` c : xs
-    
+      -- Cannot be empty
+      anyT <- grabPlaceholder
+      rest <- sequence thingies
+
+      flip (`foldM` (anyT `Arrow` anyT)) rest $
+        \f g -> do
+          i <- grabPlaceholder ; x <- grabPlaceholder ; o <- grabPlaceholder
+          f `isSubtype` (i `Arrow` x)
+          g `isSubtype` (x `Arrow` o)
+          pure $ i `Arrow` o
+
+    go (UnaryExpressionF (OtherOp "'") r') = do
+      anyT <- grabPlaceholder ; r <- r'
+      pure $ anyT `Arrow` r
+
     go (BinaryExpressionF (OtherOp o) a' b')
       | o `elem` ["+", "-", "*", "/"] = do
         a <- a' ; b <- b'
@@ -178,7 +199,6 @@ foldBottomType = cataA go
       m' <- forM m $ \e' -> do
         e <- e'
         output <- grabPlaceholder
-        -- ??
         e `isSubtype` (input `Arrow` output)
         pure output
       
@@ -189,10 +209,38 @@ foldBottomType = cataA go
       baseCone   <- grabPlaceholder
 
       -- { t: something, ... } .t
-      baseCone `isSubtype` Cone (Map.fromList [(t, returnType)])
+      baseCone `isSubtype` Cone (Map.singleton t returnType)
 
       pure $ baseCone `Arrow` returnType
+
+    go (CoconeF m) = do
+      output <- grabPlaceholder
+      
+      m' <- forM m $ \e' -> do
+        e <- e'
+        input <- grabPlaceholder
+        e `isSubtype` (input `Arrow` output)
+        pure input
+      
+      pure $ Cocone m' `Arrow` output
     
+    go (CoconeConstructorF t) = do
+      input  <- grabPlaceholder
+      output <- grabPlaceholder
+      
+      Cocone (Map.singleton t input) `isSubtype` output
+
+      pure $ input `Arrow` output
+
+    -- FIXME(Maxime): doesn't distribute to m
+    go (FunctorApplicationF f' m') = do
+      f@(Identifier _) <- f' ; m <- m'
+
+      a <- grabPlaceholder ; b <- grabPlaceholder
+      m `isSubtype` (a `Arrow` b)
+
+      pure $ FunctorApplication f a `Arrow` FunctorApplication f b
+
     go (IdentifierF t)
       | T.toLower t /= t = do
       typeScope <- get <&> typeScope
@@ -237,7 +285,7 @@ renamePhase (Program h i decls) = Program h i <$> traverse renameDecl decls
             case t `Map.lookup` zamap of
               -- if not already in the map grab a new uid
               Nothing -> do
-                uid <- CMSL.lift grabUid
+                Identifier uid <- CMSL.lift grabPlaceholder
                 modify $ Map.insert t uid
                 pure   $ Identifier (t <> uid)
               
@@ -248,11 +296,13 @@ checkStatements :: Program -> CheckerM ()
 checkStatements p = do
   st <- get
   forM_ (programDeclarations p) $ \case
+    ArrowDeclaration "Cat" _ _ _ -> pure ()
+    ObjectDeclaration{} -> pure ()
+    
     ArrowDeclaration _ name _ val' -> do
       let top = typeScope st Map.! name
       bottom <- foldBottomType val'
       bottom `isSubtype` top
-    ObjectDeclaration{} -> pure ()
 
 typecheckProgram' :: Program -> CheckerM ()
 typecheckProgram' p = do
@@ -261,16 +311,18 @@ typecheckProgram' p = do
   checkStatements uip
 
 typecheckProgram :: Program -> Either CatrinaError ()
-typecheckProgram p = evalStateT (typecheckProgram' p) defaultContext
-
-defaultContext :: Context
-defaultContext = Context
-    { typeScope         = Map.empty
-    , surtypesMap       = surtypesMap
-    , strictSubtypesMap = reverseMap surtypesMap
+typecheckProgram p =
+  evalStateT (typecheckProgram' p) Context
+    { typeScope         = Map.singleton "Bool" bool
+    , surtypesMap       = surtypes
+    , strictSubtypesMap = reverseMap surtypes
     -- T0, T1, ...
     , uids              = [0 :: Integer ..] & map (("_" <>).T.pack.show)
     }
-    where
-      surtypesMap = Map.fromList [(Identifier "Int", Set.fromList [Identifier "Float"])]
+  where
+    bool = Cocone $ Map.fromList [("true", Unit), ("false", Unit)]
+
+    surtypes = Map.singleton (Identifier "Int") (Set.singleton (Identifier "Float"))
+
+
 
