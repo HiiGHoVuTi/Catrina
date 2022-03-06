@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TupleSections, RecordWildCards, LambdaCase, DeriveGeneric, TypeApplications, DataKinds, FlexibleContexts, PatternSynonyms, BangPatterns, ViewPatterns, FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, RecordWildCards, LambdaCase, DeriveGeneric, TypeApplications, DataKinds, FlexibleContexts, PatternSynonyms, BangPatterns, ViewPatterns, FlexibleInstances, GADTs #-}
 
 module Types.Checker (
   typecheckProgram
@@ -79,7 +79,7 @@ isSubtype i@(Identifier t) b
   | T.toLower t == t = do
     subs <- checkSubtypeMap i
     case subs of
-      Nothing -> quit TypeNotFound -- cannot happen ; FIXME(Maxime): does happen.
+      Nothing -> quit TypeNotFound
       Just sb -> traverse_ (`isSubtype` b) sb
     modify $ field @"surtypesMap" %~ Map.update (Just. Set.insert b) i
     modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert i) b
@@ -115,6 +115,19 @@ isSubtype (Cocone m) (Cocone m') = do
 
   sequence_ $ Map.intersectionWith isSubtype m' m
 
+-- functors
+isSubtype (FunctorApplication t  a)
+          (FunctorApplication t' b)
+            | t == t' = a `isSubtype` b
+
+isSubtype a (FunctorApplication f x) =
+  -- FIXME(Maxime): incomplete implementation
+  let
+    apply t (UnaryExpressionF (OtherOp "(*)") _) = t
+    apply _ t = embed t
+    b = cata (apply x) f
+   in a `isSubtype` b 
+
 -- literals
 isSubtype (IntLiteral   _) (_ `Arrow` t) = Identifier "Int"   `isSubtype` t
 isSubtype (FloatLiteral _) (_ `Arrow` t) = Identifier "Float" `isSubtype` t
@@ -127,7 +140,7 @@ isSubtype a b
 -- last resort, recursive traversal of the surtype map
 isSubtype a b = do
   sursM <- checkSurtypeMap a
-  case pTraceShow (a, b) sursM of
+  case sursM of
     Nothing   -> quit TypeNotMatching
     Just surs -> anyIsSubtype surs b
  
@@ -154,7 +167,7 @@ foldTopType :: Expr -> CheckerM Expr
 foldTopType = cataA go
   where
     go :: ExprF (CheckerM Expr) -> CheckerM Expr
-    go (CompositionF [x]) = x -- foldTopType =<< x
+    go (CompositionF [x]) = x
     go (IdentifierF name) = do
       scope <- get <&> typeScope
       pure $ if name `Map.member` scope
@@ -234,10 +247,10 @@ foldBottomType = cataA go
 
     -- FIXME(Maxime): doesn't distribute to m
     go (FunctorApplicationF f' m') = do
-      f@(Identifier _) <- f' ; m <- m'
+      f <- f' ; m <- m'
 
       a <- grabPlaceholder ; b <- grabPlaceholder
-      m `isSubtype` (a `Arrow` b)
+      m `isSubtype` (a `Arrow` (a `Arrow` b))
 
       pure $ FunctorApplication f a `Arrow` FunctorApplication f b
 
@@ -253,6 +266,10 @@ foldBottomType = cataA go
 makeScope :: Program -> CheckerM ()
 makeScope p = do
   forM_ (programDeclarations p) $ \case
+    -- NOTE(Maxime): just a patch
+    ArrowDeclaration "Cat" name _ val' -> do
+      type' <- foldTopType val'
+      addToScope name type'
     ArrowDeclaration  _ name val' _ -> do
       type' <- foldTopType val'
       addToScope name type'
@@ -266,16 +283,15 @@ renamePhase :: Program -> CheckerM Program
 renamePhase (Program h i decls) = Program h i <$> traverse renameDecl decls
   where
     renameDecl :: Declaration -> CheckerM Declaration
-    renameDecl (ArrowDeclaration c n top bottom) =
+    renameDecl (ArrowDeclaration c n top bottom) = 
       ArrowDeclaration c n 
-        <$> evalStateT (renameExpr top) Map.empty 
+        <$> evalStateT (renameExpr top) Map.empty
         <*> pure bottom
     renameDecl (ObjectDeclaration c n top) =
       ObjectDeclaration c n 
         <$> evalStateT (renameExpr top) Map.empty
 
     -- Okay I'm abusing the state monad
-    
     renameExpr :: Expr -> StateT (Map.Map T.Text T.Text) CheckerM Expr
     renameExpr = cataA go
       where
@@ -287,9 +303,9 @@ renamePhase (Program h i decls) = Program h i <$> traverse renameDecl decls
               Nothing -> do
                 Identifier uid <- CMSL.lift grabPlaceholder
                 modify $ Map.insert t uid
-                pure   $ Identifier (t <> uid)
+                pure   $ Identifier uid
               
-              Just uid -> pure $ Identifier (t <> uid)
+              Just uid -> pure $ Identifier uid
         go other = embed <$> sequence other
 
 checkStatements :: Program -> CheckerM ()
@@ -306,8 +322,8 @@ checkStatements p = do
 
 typecheckProgram' :: Program -> CheckerM ()
 typecheckProgram' p = do
-  makeScope p
   uip <- renamePhase p
+  makeScope uip
   checkStatements uip
 
 typecheckProgram :: Program -> Either CatrinaError ()
