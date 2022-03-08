@@ -74,6 +74,10 @@ grabPlaceholder = do
 -- TODO(Maxime): all the laws, ex products, coproducts, operators
 isSubtype :: HasCallStack => Expr -> Expr -> CheckerM ()
 
+-- trivial case
+isSubtype a b
+  | a == b = pure ()
+
 -- polymorphic case
 isSubtype i@(Identifier t) b
   | T.toLower t == t = do
@@ -132,10 +136,6 @@ isSubtype a (FunctorApplication f x) =
 isSubtype (IntLiteral   _) (_ `Arrow` t) = Identifier "Int"   `isSubtype` t
 isSubtype (FloatLiteral _) (_ `Arrow` t) = Identifier "Float" `isSubtype` t
 isSubtype (CharLiteral  _) (_ `Arrow` t) = Identifier "Char"  `isSubtype` t
-
--- trivial case
-isSubtype a b
-  | a == b = pure ()
 
 -- last resort, recursive traversal of the surtype map
 isSubtype a b = do
@@ -206,6 +206,29 @@ foldBottomType = cataA go
         b `isSubtype` (input `Arrow` output)
         pure (input `Arrow` output)
     
+    go (BinaryExpressionF (OtherOp o) a' b')
+      | o `elem` ["==", "!="] = do
+        a <- a' ; b <- b'
+        input <- grabPlaceholder
+        middle <- grabPlaceholder
+        output <- grabPlaceholder
+        output `isSubtype` Identifier "Bool"
+        a `isSubtype` (input `Arrow` middle)
+        b `isSubtype` (input `Arrow` middle)
+        pure (input `Arrow` output)
+
+    go (BinaryExpressionF (OtherOp o) a' b')
+      | o `elem` ["<=", ">=", ">!=", "<!="] = do
+        a <- a' ; b <- b'
+        input <- grabPlaceholder
+        middle <- grabPlaceholder
+        output <- grabPlaceholder
+        middle `isSubtype` Identifier "Float"
+        output `isSubtype` Identifier "Bool"
+        a `isSubtype` (input `Arrow` middle)
+        b `isSubtype` (input `Arrow` middle)
+        pure (input `Arrow` output)
+
     go (ConeF m) = do
       input <- grabPlaceholder
 
@@ -245,7 +268,6 @@ foldBottomType = cataA go
 
       pure $ input `Arrow` output
 
-    -- FIXME(Maxime): doesn't distribute to m
     go (FunctorApplicationF f' m') = do
       f <- f' ; m <- m'
 
