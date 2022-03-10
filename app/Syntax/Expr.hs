@@ -197,11 +197,18 @@ functor = do
   name <- identifier lexer
   FunctorApplication (Identifier $ pack name) <$> angles lexer operation
 
+backApply :: Parser Expr
+backApply = do
+  base <- pack <$> identifier lexer <* char '|'
+  rest <- term
+  pure (Composition [ rest, Identifier base ])
+
 term :: Parser Expr
 term =  fmap Composition . many
      $  try functor
     <|> try (parens lexer expr)
     <|> try unit'
+    <|> try backApply
     <|> try cone
     <|> try cocone
     <|> try coneProperty
