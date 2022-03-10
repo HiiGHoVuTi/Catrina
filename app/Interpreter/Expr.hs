@@ -155,7 +155,8 @@ evalExpr env expr' input = unsafeInterleaveIO $
 
         Cone typeMap -> let
           VCone vcone = input
-          combine v (UnaryExpression (OtherOp "(*)") t) =
+          -- combine v (UnaryExpression (OtherOp "(*)") t) =
+          combine v t@(Composition []) =
             flip (evalExpr env) v . FunctorApplication t =<< unwrapped
           combine v t = flip (evalExpr env) v . FunctorApplication t =<< rewrapped
           distributed = Map.intersectionWith combine vcone typeMap
@@ -164,11 +165,14 @@ evalExpr env expr' input = unsafeInterleaveIO $
         Cocone typeMap -> let
             VCocone (prop, val) = input
             functor'            = 
-              case pTraceShowId (typeMap Map.! prop) of
-                UnaryExpression (OtherOp "(*)") t 
+              case typeMap Map.! prop of
+                -- UnaryExpression (OtherOp "(*)") t 
+                t@(Composition [])
                   -> FunctorApplication t <$> unwrapped 
                 t -> FunctorApplication t <$> rewrapped
           in VCocone . (prop, ) <$> (flip (evalExpr env) val =<< functor')
+
+        Unit -> pure VUnit
 
         a -> pTraceShow (a, mappedExpr) undefined
 

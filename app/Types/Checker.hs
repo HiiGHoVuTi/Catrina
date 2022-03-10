@@ -37,7 +37,11 @@ type CheckerM = StateT Context (Either CatrinaError)
 
 
 quit :: HasCallStack => CatrinaError -> CheckerM a
-quit = error "" -- CMSL.lift . Left
+quit = CMSL.lift . Left
+
+isn'tPolymorphic :: Expr -> Bool
+isn'tPolymorphic (Identifier t) = T.toLower t /= t
+isn'tPolymorphic _ = True
 
 checkSurtypeMap :: Expr -> CheckerM (Maybe (Set.Set Expr))
 checkSurtypeMap t = get <&> Map.lookup t . surtypesMap
@@ -71,7 +75,16 @@ grabPlaceholder = do
   modify $ field @"strictSubtypesMap" %~ Map.insert placeholder Set.empty
   pure placeholder
 
--- TODO(Maxime): all the laws, ex products, coproducts, operators
+compose2 :: Map.Map T.Text Expr -> Expr -> Expr -> Expr
+compose2 scope t = cata go
+  where
+    -- NOTE(Maxime): incomplete ?
+      go (CompositionF zs) = Composition (t:zs)
+      go (IdentifierF f')
+        | f' `Map.member` scope = Composition [t, scope Map.! f']
+      go x = embed x
+
+
 isSubtype :: HasCallStack => Expr -> Expr -> CheckerM ()
 
 -- trivial case
@@ -103,6 +116,16 @@ isSubtype (i1 `Arrow` o1) (i2 `Arrow` o2) = i2 `isSubtype` i1 *> o1 `isSubtype` 
 -- identity
 isSubtype (Composition []) (t1 `Arrow` t2) = t2 `isSubtype` t1
 
+isSubtype a (Composition [b]) = a `isSubtype` b -- NOTE(Maxime): shouldn't happen
+
+isSubtype (Composition as) (Composition bs) = zipWithM_ isSubtype as bs
+isSubtype a (Composition xs) = do
+  scope <- get <&> typeScope
+  a `isSubtype` foldl1 (compose2 scope) xs
+isSubtype (Composition xs) b = do
+  scope <- get <&> typeScope
+  foldl1 (compose2 scope) xs `isSubtype` b
+
 -- products
 isSubtype (Cone m) (Cone m') = do
   if all (`Map.member` m) (Map.keys m')
@@ -125,42 +148,74 @@ isSubtype (FunctorApplication t  a)
             | t == t' = a `isSubtype` b
 
 isSubtype a (FunctorApplication f x) =
-  -- FIXME(Maxime): incomplete implementation
-  let
-    apply t (UnaryExpressionF (OtherOp "(*)") _) = t
-    apply _ t = embed t
-    b = cata (apply x) f
-   in a `isSubtype` b 
+  a `isSubtype` cata (go x) f
+    where
+      go t (CompositionF xs) = Composition (t:xs)
+      go _ t = embed t
 
 -- literals
-isSubtype (IntLiteral   _) (_ `Arrow` t) = Identifier "Int"   `isSubtype` t
-isSubtype (FloatLiteral _) (_ `Arrow` t) = Identifier "Float" `isSubtype` t
-isSubtype (CharLiteral  _) (_ `Arrow` t) = Identifier "Char"  `isSubtype` t
+isSubtype (IntLiteral    _) (_ `Arrow` t) = Identifier "Int"    `isSubtype` t
+isSubtype (FloatLiteral  _) (_ `Arrow` t) = Identifier "Float"  `isSubtype` t
+isSubtype (CharLiteral   _) (_ `Arrow` t) = Identifier "Char"   `isSubtype` t
+isSubtype (StringLiteral _) (_ `Arrow` t) = Identifier "String" `isSubtype` t
+
+-- TODO(Maxime): b shouldn't be Void
+isSubtype Unit _ = pure ()
 
 -- last resort, recursive traversal of the surtype map
-isSubtype a b = do
-  sursM <- checkSurtypeMap a
-  case sursM of
-    Nothing   -> quit TypeNotMatching
-    Just surs -> anyIsSubtype surs b
- 
+isSubtype a b = anyIsRight
+  [ surtypesMapCheck
+  , typeScopeCheckA
+  , typeScopeCheckB
+  ]
+  where
+    isIdentifier (Identifier _) = True ; isIdentifier _ = False
+
+    surtypesMapCheck = do
+      sursM <- checkSurtypeMap a
+      case sursM of
+        Nothing   -> quit TypeNotMatching
+        Just surs -> anyIsSubtype surs b
+
+    typeScopeCheckA = do
+      if isIdentifier a then pure () else quit TypeNotFound 
+
+      sc <- get <&> typeScope
+      let Identifier t = a
+      if t `Map.member` sc
+         then (sc Map.! t) `isSubtype` b
+         else quit TypeNotFound
+
+    typeScopeCheckB = do
+      if isIdentifier b then pure () else quit TypeNotFound 
+
+      sc <- get <&> typeScope
+      let Identifier t = b
+      if t `Map.member` sc
+         then a `isSubtype` (sc Map.! t)
+         else quit TypeNotFound
+
+anyIsRight :: [CheckerM ()] -> CheckerM ()
+anyIsRight x = do
+  st <- get
+  x
+    & filter (isRight . flip evalStateT st)
+    -- fail if no matches, succeed otherwise
+    & \case
+      [] -> quit TypeNotMatching
+      _  -> pure ()
+
+
 anyIsSubtype :: HasCallStack => Set.Set Expr -> Expr -> CheckerM ()
 anyIsSubtype (Set.toList -> []) _  = quit TypeNotFound
 anyIsSubtype (Set.toList -> subs) b
   | b `elem` subs = pure ()
 anyIsSubtype (Set.toList -> subs) b = do
-    st <- get
     subs
       & filter isn'tPolymorphic
     -- try all subtypes and filter out failures
-      & map (`isSubtype` b) & filter (isRight . flip evalStateT st)
-    -- fail if no matches, succeed otherwise
-      & \case
-        [] -> quit TypeNotMatching
-        _  -> pure ()
-  where
-    isn'tPolymorphic (Identifier t) = T.toLower t /= t
-    isn'tPolymorphic _ = True
+      & map (`isSubtype` b)   
+      & anyIsRight
 
 -- TODO(Maxime): bring in the interpreter (oops IO)
 foldTopType :: Expr -> CheckerM Expr
@@ -177,7 +232,6 @@ foldTopType = cataA go
 
 
 foldBottomType :: Expr -> CheckerM Expr
--- TODO(Maxime): add other folds (products and coproducts)
 foldBottomType = cataA go
   where
     go (CompositionF thingies) = do
@@ -192,9 +246,32 @@ foldBottomType = cataA go
           g `isSubtype` (x `Arrow` o)
           pure $ i `Arrow` o
 
+    -- NOTE(Maxime): will sadly be reworked
     go (UnaryExpressionF (OtherOp "'") r') = do
       anyT <- grabPlaceholder ; r <- r'
       pure $ anyT `Arrow` r
+
+    go (UnaryExpressionF (OtherOp "-") r') = do
+      r <- r'
+      i <- grabPlaceholder
+      r `isSubtype` (i `Arrow` Identifier "Float")
+      pure $ i `Arrow` r
+
+    go (BinaryExpressionF (OtherOp "$") a' b') = do
+      a <- a' ; b <- b'
+      input <- grabPlaceholder
+      middle <- grabPlaceholder
+      output <- grabPlaceholder
+      a `isSubtype` (input `Arrow` (middle `Arrow` output))
+      b `isSubtype` (input `Arrow` middle)
+      pure (input `Arrow` output)
+
+    go (BinaryExpressionF (OtherOp ":,") a' b') = do
+      a <- a' ; b <- b'
+      t <- grabPlaceholder ; i <- grabPlaceholder
+      a `isSubtype` (i `Arrow` t)
+      b `isSubtype` (i `Arrow` Composition [t, Identifier "List"])
+      pure $ i `Arrow` Composition [t, Identifier "List"]
 
     go (BinaryExpressionF (OtherOp o) a' b')
       | o `elem` ["+", "-", "*", "/"] = do
@@ -274,13 +351,14 @@ foldBottomType = cataA go
       a <- grabPlaceholder ; b <- grabPlaceholder
       m `isSubtype` (a `Arrow` (a `Arrow` b))
 
-      pure $ FunctorApplication f a `Arrow` FunctorApplication f b
+      pure $ Composition [a, f] `Arrow` Composition [b, f]
 
-    go (IdentifierF t)
-      | T.toLower t /= t = do
+    go (IdentifierF t) = do
       typeScope <- get <&> typeScope
       case t `Map.lookup` typeScope of
-        Nothing -> quit TypeNotFound 
+        Nothing -> if T.toLower t /= t 
+                      then quit TypeNotFound
+                      else pure (Identifier t)
         Just ty -> foldTopType ty
 
     go other = embed <$> sequence other
@@ -341,6 +419,16 @@ checkStatements p = do
       let top = typeScope st Map.! name
       bottom <- foldBottomType val'
       bottom `isSubtype` top
+      -- TODO(Maxime): clear out all polymorphic thingies
+        {- the following code removes too much, including signatures from
+            top types
+      modify $ field @"surtypesMap"       %~ clear
+      modify $ field @"strictSubtypesMap" %~ clear
+
+  where
+    clear = Map.filterWithKey (const.isn'tPolymorphic) 
+          . Map.map (Set.filter isn'tPolymorphic)
+        -}
 
 typecheckProgram' :: Program -> CheckerM ()
 typecheckProgram' p = do
@@ -351,15 +439,21 @@ typecheckProgram' p = do
 typecheckProgram :: Program -> Either CatrinaError ()
 typecheckProgram p =
   evalStateT (typecheckProgram' p) Context
-    { typeScope         = Map.singleton "Bool" bool
+    { typeScope         = Map.fromList 
+      [ ("Bool", bool)
+      , ("String", Composition [Identifier "Char", Identifier "List"])
+      -- built-in functions
+      , ("strconcat", 
+        Composition [Identifier "String", Identifier "List"]
+        `Arrow` Identifier "String")
+      ]
     , surtypesMap       = surtypes
     , strictSubtypesMap = reverseMap surtypes
     -- T0, T1, ...
     , uids              = [0 :: Integer ..] & map (("_" <>).T.pack.show)
     }
   where
-    bool = Cocone $ Map.fromList [("true", Unit), ("false", Unit)]
-
+    bool  = Cocone $ Map.fromList [("true", Unit), ("false", Unit)]
     surtypes = Map.singleton (Identifier "Int") (Set.singleton (Identifier "Float"))
 
 
