@@ -86,6 +86,10 @@ evalExpr env expr' input = unsafeInterleaveIO $
       rhs <- evalExpr env b input
       evalExpr env lhs rhs
 
+    BinaryExpression (OtherOp ">>>") a b -> do
+      VExpr a' <- evalExpr env a input
+      VExpr b' <- evalExpr env b input
+      evalExpr env (Composition [a', b']) input
 
     BinaryExpression (OtherOp ":,") a b ->
       evalExpr env (Composition 

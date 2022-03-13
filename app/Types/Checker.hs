@@ -291,6 +291,14 @@ foldBottomType = dealWithInjections >=> cataA go
       b `isSubtype` (i `Arrow` Composition [t, Identifier "List"])
       pure $ i `Arrow` Composition [t, Identifier "List"]
 
+    go (BinaryExpressionF (OtherOp ">>>") f' g') = do
+      f <- f' ; g <- g'
+      i <- grabPlaceholder
+      b <- grabPlaceholder ; c <- grabPlaceholder
+      f `isSubtype` (i `Arrow` (i `Arrow` b))
+      g `isSubtype` (i `Arrow` (b `Arrow` c))
+      pure $ i `Arrow` c
+
     go (BinaryExpressionF (OtherOp o) a' b')
       | o `elem` ["+", "-", "*", "/"] = do
         a <- a' ; b <- b'
