@@ -35,7 +35,7 @@ data Context = Context
 
 type CheckerM = StateT Context (Either CatrinaError)
 
-
+-- TODO(Maxime): improve error messages
 quit :: HasCallStack => CatrinaError -> CheckerM a
 quit = CMSL.lift . Left
 
@@ -91,6 +91,18 @@ isSubtype :: HasCallStack => Expr -> Expr -> CheckerM ()
 isSubtype a b
   | a == b = pure ()
 
+-- functions
+isSubtype (i1 `Arrow` o1) (i2 `Arrow` o2) = i2 `isSubtype` i1 *> o1 `isSubtype` o2
+
+-- identity
+isSubtype (Composition []) (t1 `Arrow` t2) = t2 `isSubtype` t1
+-- const
+isSubtype (Identifier "const") b = do
+  t <- grabPlaceholder ; a <- grabPlaceholder
+  b `isSubtype` (t `Arrow` (a `Arrow` t))
+
+isSubtype a (Composition [b]) = a `isSubtype` b -- NOTE(Maxime): shouldn't happen
+
 -- polymorphic case
 isSubtype i@(Identifier t) b
   | T.toLower t == t = do
@@ -109,14 +121,6 @@ isSubtype a i@(Identifier t)
       Just sr -> traverse_ (a `isSubtype`) sr
     modify $ field @"surtypesMap"       %~ Map.alter (alterInsert i) a
     modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) i
-
--- functions
-isSubtype (i1 `Arrow` o1) (i2 `Arrow` o2) = i2 `isSubtype` i1 *> o1 `isSubtype` o2
-
--- identity
-isSubtype (Composition []) (t1 `Arrow` t2) = t2 `isSubtype` t1
-
-isSubtype a (Composition [b]) = a `isSubtype` b -- NOTE(Maxime): shouldn't happen
 
 isSubtype (Composition as) (Composition bs) = zipWithM_ isSubtype as bs
 isSubtype a (Composition xs) = do
@@ -231,9 +235,28 @@ foldTopType = cataA go
     go other              = embed <$> sequence other
 
 
+-- TODO(Maxime): refactor as para ?
 foldBottomType :: Expr -> CheckerM Expr
-foldBottomType = cataA go
+foldBottomType = dealWithInjections >=> cataA go
   where
+    -- FIXME
+    dealWithInjections :: Expr -> CheckerM Expr
+    dealWithInjections = fmap embed . inj' . project
+
+    inj' :: ExprF Expr -> CheckerM (ExprF Expr)
+    inj' (UnaryExpressionF (OtherOp "'") r) = do
+      i <- grabPlaceholder
+      o <- flip cataA r $ \case
+        UnaryExpressionF (OtherOp "`") e' -> do
+          e <- foldBottomType =<< e'
+          extraI <- grabPlaceholder ; function <- grabPlaceholder
+          e `isSubtype` (extraI `Arrow` function)
+          i `isSubtype` extraI
+          pure function
+        x -> embed <$> sequence x
+      pure.project $ i `Arrow` o
+    inj' e = traverse dealWithInjections e
+
     go (CompositionF thingies) = do
       -- Cannot be empty
       anyT <- grabPlaceholder
@@ -245,11 +268,6 @@ foldBottomType = cataA go
           f `isSubtype` (i `Arrow` x)
           g `isSubtype` (x `Arrow` o)
           pure $ i `Arrow` o
-
-    -- NOTE(Maxime): will sadly be reworked
-    go (UnaryExpressionF (OtherOp "'") r') = do
-      anyT <- grabPlaceholder ; r <- r'
-      pure $ anyT `Arrow` r
 
     go (UnaryExpressionF (OtherOp "-") r') = do
       r <- r'
@@ -446,6 +464,7 @@ typecheckProgram p =
       , ("strconcat", 
         Composition [Identifier "String", Identifier "List"]
         `Arrow` Identifier "String")
+      , ("id", Composition [])
       ]
     , surtypesMap       = surtypes
     , strictSubtypesMap = reverseMap surtypes

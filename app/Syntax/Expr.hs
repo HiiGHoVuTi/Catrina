@@ -65,8 +65,8 @@ otherBinop name = binary name (BinaryExpression (OtherOp $ pack name))
 -- FIXME(Maxime): Allow any op but still keep precedence
 operatorsTable :: OperatorTable Text () Identity Expr
 operatorsTable =
-  [ [otherPrefix "'", otherPrefix "(*)"]
-  , [otherPrefix "-"]
+  [ -- [otherPrefix "'", otherPrefix "(*)"]
+    [otherPrefix "-"]
   , [otherBinop  "*" AssocLeft , otherBinop  "/" AssocLeft]
   , [otherBinop  "+" AssocLeft , otherBinop  "-" AssocLeft]
   , [otherBinop ":," AssocRight]
@@ -197,17 +197,33 @@ functor = do
   name <- identifier lexer
   FunctorApplication (Identifier $ pack name) <$> angles lexer operation
 
+freeze :: Parser Expr
+freeze = do
+  e <- char '\'' *> singleTerm
+  pure (UnaryExpression (OtherOp "'") e)
+
+inject :: Parser Expr
+inject = do
+  e <- char '`' *> singleTerm
+  pure (UnaryExpression (OtherOp "`") e)
+
+
 backApply :: Parser Expr
 backApply = do
   base <- pack <$> identifier lexer <* char '|'
-  rest <- term
+  rest <- singleTerm
   pure (Composition [ rest, Identifier base ])
 
 term :: Parser Expr
-term =  fmap Composition . many
-     $  try functor
+term =  fmap Composition (many singleTerm)
+
+singleTerm :: Parser Expr
+singleTerm 
+      = try functor
     <|> try (parens lexer expr)
     <|> try unit'
+    <|> try freeze
+    <|> try inject
     <|> try backApply
     <|> try cone
     <|> try cocone
@@ -215,6 +231,7 @@ term =  fmap Composition . many
     <|> try coconeConstructor
     <|> try coneAnalysis
     <|> try literal
+
 
 literal :: Parser Expr
 literal = Identifier   . pack   <$> try (identifier    lexer)

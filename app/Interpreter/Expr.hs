@@ -1,8 +1,9 @@
-{-# LANGUAGE OverloadedStrings, TupleSections #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, LambdaCase #-}
 module Interpreter.Expr (
   evalExpr
                         ) where
 
+import Data.Functor.Foldable
 import Data.List
 import qualified Data.Map as Map 
 import Data.Text hiding (map, find, foldl, reverse)
@@ -66,13 +67,13 @@ evalExpr env expr' input = unsafeInterleaveIO $
         asList     = foldl toList (CoconeConstructor "empty") (reverse str)
       in evalExpr env asList input
 
-    UnaryExpression (OtherOp "'") liftedExpr -> pure (VExpr liftedExpr)
-
-    UnaryExpression (OtherOp ",'") a -> flip pTraceShow undefined $
-      Cone . Map.fromList $
-        [ ("_1", a)
-        , ("_2", Composition [])
-        ]
+    UnaryExpression (OtherOp "'") liftedExpr ->
+      -- NOTE(Maxime): search and replace
+      fmap VExpr $ flip para liftedExpr $ \case
+        UnaryExpressionF (OtherOp "`") r -> do
+          VExpr e <- evalExpr env (fst r) input
+          pure e
+        x -> embed <$> traverse snd x
 
     UnaryExpression (OtherOp name) opr -> evalExpr env 
       (getFunction env name)    -- NOTE(Maxime): Unaries are just functions 
