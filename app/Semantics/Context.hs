@@ -22,7 +22,8 @@ baseIdentifiers =
   -- Types
   , "String", "Int", "Float", "Char", "Bool"
   -- Built-Ins
-  , "shell", "stdout", "id", "const", "show", "strconcat"
+  , "id", "cons", "fmap", "cata"
+  , "shell", "stdout", "show", "strconcat"
   ]
 
 -- FIXME(Maxime): inputs

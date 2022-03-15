@@ -27,6 +27,7 @@ import GHC.Stack
 
 data Context = Context
   { typeScope         :: Map.Map T.Text Expr
+  , originalScope     :: Context
   , surtypesMap       :: Map.Map Expr (Set.Set Expr)
   , strictSubtypesMap :: Map.Map Expr (Set.Set Expr)
   , uids              :: [T.Text]
@@ -79,6 +80,13 @@ compose2 :: Map.Map T.Text Expr -> Expr -> Expr -> Expr
 compose2 scope t = cata go
   where
     -- NOTE(Maxime): incomplete ?
+      {-
+      go (CompositionF ((ConeProperty z):zs)) = 
+        let
+          Cone m = t
+          z'     = m Map.! z
+        in Composition (z':zs)
+      -}
       go (CompositionF zs) = Composition (t:zs)
       go (IdentifierF f')
         | f' `Map.member` scope = Composition [t, scope Map.! f']
@@ -100,18 +108,47 @@ isSubtype (Composition []) (t1 `Arrow` t2) = t2 `isSubtype` t1
 isSubtype (Identifier "const") b = do
   t <- grabPlaceholder ; a <- grabPlaceholder
   b `isSubtype` (t `Arrow` (a `Arrow` t))
+isSubtype (Identifier "fmap") b = do
+  x <- grabPlaceholder ; y <- grabPlaceholder
+  f <- grabPlaceholder
+  let
+    c = Cone $ Map.fromList
+      [ ("_1", f)
+      , ("_2", Composition [x, f])
+      , ("_3", x `Arrow` y)
+      ]
+  b `isSubtype` (c `Arrow` Composition [y, f])
+isSubtype (Identifier "cata") b = do
+  pure () -- FIXME
 
 isSubtype a (Composition [b]) = a `isSubtype` b -- NOTE(Maxime): shouldn't happen
 
 -- polymorphic case
+isSubtype a@(Identifier ta) b@(Identifier tb)
+  |  T.toLower ta == ta
+  && T.toLower tb == tb = do
+    subs <- checkSubtypeMap a
+    case subs of
+      Nothing -> quit TypeNotFound
+      Just sb -> traverse_ (`isSubtype` b) sb
+
+    originals <- get <&> surtypesMap.originalScope
+    when (a `Map.notMember` originals) $ 
+      modify $ field @"surtypesMap"       %~ Map.update (Just. Set.insert b) a
+    when (b `Map.notMember` originals) $ 
+      modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) b
+
 isSubtype i@(Identifier t) b
   | T.toLower t == t = do
     subs <- checkSubtypeMap i
     case subs of
       Nothing -> quit TypeNotFound
       Just sb -> traverse_ (`isSubtype` b) sb
-    modify $ field @"surtypesMap" %~ Map.update (Just. Set.insert b) i
-    modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert i) b
+
+    originals <- get <&> surtypesMap.originalScope
+    when (i `Map.notMember` originals) $ 
+      modify $ field @"surtypesMap"       %~ Map.update (Just. Set.insert b) i
+    modify   $ field @"strictSubtypesMap" %~ Map.alter (alterInsert i) b
 
 isSubtype a i@(Identifier t)
   | T.toLower t == t = do
@@ -119,8 +156,11 @@ isSubtype a i@(Identifier t)
     case surs of
       Nothing -> quit TypeNotFound -- cannot happen
       Just sr -> traverse_ (a `isSubtype`) sr
-    modify $ field @"surtypesMap"       %~ Map.alter (alterInsert i) a
-    modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) i
+
+    originals <- get <&> surtypesMap.originalScope
+    modify   $ field @"surtypesMap"       %~ Map.alter (alterInsert i) a
+    when (i `Map.notMember` originals) $
+      modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) i
 
 isSubtype (Composition as) (Composition bs) = zipWithM_ isSubtype as bs
 isSubtype a (Composition xs) = do
@@ -402,8 +442,16 @@ makeScope p = do
     ObjectDeclaration _ name val'   -> do
       type' <- foldTopType val'
       addToScope name type'
+  sc <- get
+  modify $ field @"originalScope" .~ sc
   where
     addToScope n t = modify $ field @"typeScope" %~ Map.insert n t
+
+resetScope :: CheckerM ()
+resetScope = do
+  sc <- get <&> originalScope
+  modify $ const sc
+  modify $ field @"originalScope" .~ sc
 
 renamePhase :: Program -> CheckerM Program 
 renamePhase (Program h i decls) = Program h i <$> traverse renameDecl decls
@@ -445,6 +493,7 @@ checkStatements p = do
       let top = typeScope st Map.! name
       bottom <- foldBottomType val'
       bottom `isSubtype` top
+      resetScope
       -- TODO(Maxime): clear out all polymorphic thingies
         {- the following code removes too much, including signatures from
             top types
@@ -465,15 +514,8 @@ typecheckProgram' p = do
 typecheckProgram :: Program -> Either CatrinaError ()
 typecheckProgram p =
   evalStateT (typecheckProgram' p) Context
-    { typeScope         = Map.fromList 
-      [ ("Bool", bool)
-      , ("String", Composition [Identifier "Char", Identifier "List"])
-      -- built-in functions
-      , ("strconcat", 
-        Composition [Identifier "String", Identifier "List"]
-        `Arrow` Identifier "String")
-      , ("id", Composition [])
-      ]
+    { typeScope         = scope
+    , originalScope     = undefined
     , surtypesMap       = surtypes
     , strictSubtypesMap = reverseMap surtypes
     -- T0, T1, ...
@@ -482,6 +524,16 @@ typecheckProgram p =
   where
     bool  = Cocone $ Map.fromList [("true", Unit), ("false", Unit)]
     surtypes = Map.singleton (Identifier "Int") (Set.singleton (Identifier "Float"))
+    scope = Map.fromList 
+      [ ("Bool", bool)
+      , ("String", Composition [Identifier "Char", Identifier "List"])
+      -- built-in functions
+      , ("strconcat", 
+        Composition [Identifier "String", Identifier "List"]
+        `Arrow` Identifier "String")
+      , ("id", Composition [])
+      ]
+
 
 
 

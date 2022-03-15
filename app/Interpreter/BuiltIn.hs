@@ -30,6 +30,10 @@ executeStd "<!=" = pure.lt
 executeStd ">="  = pure.geq
 executeStd "<="  = pure.leq
 
+-- Recursion schemes
+executeStd "const" = pure.VExpr . revertToExpr
+executeStd "cata"  = pure.undefined
+
 -- Rest
 executeStd name = const $ error 
                         $ T.unpack ("Can't find " `T.append` name)

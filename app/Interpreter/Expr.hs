@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TupleSections, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, LambdaCase, ViewPatterns #-}
 module Interpreter.Expr (
   evalExpr
                         ) where
@@ -14,37 +14,6 @@ import System.IO.Unsafe
 import Types.Category
 
 import Debug.Pretty.Simple
-
-  {-
-composeList :: Env -> [Expr] -> Expr
-composeList e = foldl (composeE e) (Composition [])
-
-composeE :: Env -> Expr -> Expr -> Expr
-
-composeE c (Identifier i) b   = composeE c (getFunction c i) b
-composeE c a   (Identifier i) = composeE c a (getFunction c i)
-composeE _ Unit _             = Unit
-composeE _ (Composition []) b = b
-composeE _ a (Composition []) = a
-composeE c (Composition xs) (Composition ys) = composeList c $ xs ++ ys
-composeE c a (Composition xs) = composeList c $ a : xs
-composeE c (Composition xs) b = composeList c $ xs ++ pure b
-composeE c (Cone   ms) b = ms
-  & Map.map (flip (composeE c) b)
-  & Map.mapWithKey (\k e -> Composition [ ConeProperty k, e ])
-  & Cone
-composeE c (Cocone ms) b = ms
-  & Map.map (flip (composeE c) b)
-  & Map.mapWithKey (\k e -> Composition [ e, CoconeConstructor k ])
-  & Cocone
-composeE c (BinaryExpression op e1 e2) b
-  = BinaryExpression op (composeE c e1 b) (composeE c e2 b)
-composeE _ (UnaryExpression (OtherOp "'") e) _ = e
-composeE c (FunctorApplication lhs rhs) b = FunctorApplication lhs (composeE c rhs b)
-composeE _ a b = Composition [a, b]
--- composeE _ a b = pTraceShow (a, b) undefined
-  -}
-
 
 evalExpr :: Env -> Expr -> Value -> IO Value
 evalExpr _ expr' VPlaceholder = pure (VExpr expr')
@@ -181,13 +150,37 @@ evalExpr env expr' input = unsafeInterleaveIO $
 
         a -> pTraceShow (a, mappedExpr) undefined
 
+      
+    BuiltIn "fmap" -> 
+      case input of
+        VCone (Map.toList ->
+          [ ("_1", VExpr t@(Identifier _))
+          , ("_2", i)
+          , ("_3", VExpr f)
+          ]
+              ) -> evalExpr env (FunctorApplication t (freeze f)) i
+                where freeze = UnaryExpression (OtherOp "'")
+        _ -> undefined
+
+    BuiltIn "cata" ->
+      case input of
+        VCone (Map.toList -> 
+          [ ("_1", VExpr (Identifier f))
+          , ("_2", i)
+          , ("_3", e)
+          ]
+                ) -> undefined
+
+        _ -> undefined
+
     -- TODO(Maxime): refactor this stuff
     BuiltIn "lconcat" -> evalExpr env (Composition [ConeAnalysis ["_1","_2"],Cocone (Map.fromList [("cons",Cocone (Map.fromList [("cons",BinaryExpression (OtherOp ":,") (Composition [ConeProperty "_1",ConeProperty "head"]) (Composition [Cone (Map.fromList [("_1",Composition [ConeProperty "_1",ConeProperty "tail"]),("_2",Composition [ConeProperty "_2",CoconeConstructor "cons"])]),Identifier "lconcat"])),("empty",Composition [ConeProperty "_1",CoconeConstructor "cons"])])),("empty",Cocone (Map.fromList [("cons",Composition [ConeProperty "_2",CoconeConstructor "cons"]),("empty",Composition [Unit,CoconeConstructor "empty"])]))])]) input
     
     BuiltIn "lfold" -> evalExpr env (Composition [ConeAnalysis ["elems"],Cocone (Map.fromList [("cons",Composition [Composition [Cone (Map.fromList [("combine",Composition [ConeProperty "combine"]),("elems",Composition [ConeProperty "elems",ConeProperty "tail"]),("initial",BinaryExpression (OtherOp "$") (Composition [ConeProperty "combine"]) (Composition [Composition [Cone (Map.fromList [("new",Composition [ConeProperty "elems",ConeProperty "head"]),("old",Composition [ConeProperty "initial"])])]]))])],Identifier "lfold"]),("empty",Composition [ConeProperty "initial"])])]) input
 
     BuiltIn "strconcat" -> evalExpr env (Composition [Composition [Cone (Map.fromList [("combine",UnaryExpression (OtherOp "'") (Composition [Cone (Map.fromList [("_1",Composition [ConeProperty "old"]),("_2",Composition [ConeProperty "new"])]),Identifier "lconcat"])),("elems",Composition []),("initial",Composition [Unit,CoconeConstructor "empty"])])],Identifier "lfold"]) input
-  
+ 
+
     BuiltIn name -> executeStd name input
 
 getFunction :: Env -> Text -> Expr

@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
 module Interpreter.Std (
   module Numbers,
   module Boolean,
-  module Shell
+  module Shell,
+
                        ) where
 
 import Interpreter.Std.Numbers
