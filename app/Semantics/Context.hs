@@ -19,6 +19,8 @@ createContext p = Context
 baseIdentifiers :: [Text]
 baseIdentifiers =
   [ "Base", "Cat", "Fun", "Shell"
+  -- External
+  , "EXTERNAL", "external"
   -- Types
   , "String", "Int", "Float", "Char", "Bool"
   -- Built-Ins

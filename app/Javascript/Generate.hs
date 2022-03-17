@@ -32,17 +32,24 @@ generateJs Program
 
 generateDecl :: Declaration -> String
 generateDecl ObjectDeclaration{} = ""
-generateDecl (ArrowDeclaration _ name _ body) 
+generateDecl (ArrowDeclaration _ _ _ (Identifier "EXTERNAL")) = ""
+generateDecl (ArrowDeclaration "Base" name _ body) 
   = "function "<> T.unpack name <>"(x) {\n"
   <> indent (generateExpr body) <> "\n"
   <> "  return x;\n"
   <> "}\n"
+generateDecl _ = ""
 
 generateExpr :: Expr -> String
 generateExpr = para go
   where
     go :: ExprF (Expr, String) -> String
-    go UnitF = "x = {};"
+    go UnitF = "x = {};\n"
+    go (CompositionF [ (Composition [
+      BinaryExpression (OtherOp ":,") 
+        (StringLiteral t) 
+        _, _ ], _), (Identifier "external", _)]) 
+      = "x = " <> t <> "(x);\n"
     go (CompositionF xs) = foldl (<>) "" (map snd xs)
     go (IdentifierF "id") = ""
     go (IdentifierF "const") = "x = (a => b => a)(x);\n"
@@ -50,7 +57,8 @@ generateExpr = para go
     go (CharLiteralF c) = "x = " <> pure c <> ";\n"
     go (IntLiteralF i) = "x = " <> show i <> ";\n"
     go (FloatLiteralF x) = "x = " <> show x <> ";\n"
-    go (StringLiteralF s) = "\"" <> s <> "\""
+    -- FIXME(Maxime): strings are totally broken
+    go (StringLiteralF s) = "x = \"" <> s <> "\";\n"
     go (UnaryExpressionF (OtherOp "`") r)
       =  "x = (function (x){\n"
       <> indent (snd r) 
@@ -69,7 +77,7 @@ generateExpr = para go
       <> finishBinop (T.unpack o)
     go (ConeF m) = "x = {\n" <> indent
         ( concatMap snd $ Map.toList $ flip Map.mapWithKey m $ \t s ->
-          T.unpack t <> ": (function(x){\n" <> indent (snd s) <> "  return x;\n})(x)"
+          T.unpack t <> ": (function(x){\n" <> indent (snd s) <> "  return x;\n})(x),\n"
         )
       <> "};\n"
     go (ConePropertyF t) = "x = x." <> T.unpack t <> ";\n"
@@ -91,6 +99,7 @@ finishBinop ">!=" = "x = lhs(x) > rhs(x);\n"
 finishBinop "==" = "x = lhs(x) === rhs(x);\n"
 finishBinop "$" = "x = lhs(x)(rhs(x));\n"
 finishBinop ">>>" = "x = rhs(x)(lhs(x));\n"
+finishBinop ":," = "x = [\"cons\", { head: lhs(x), tail: rhs(x) }];\n"
 finishBinop o = "x = lhs(x) " <> o <> " rhs(x);\n"
 
 foldWithDefault :: (a -> a -> a) -> a -> [a] -> a

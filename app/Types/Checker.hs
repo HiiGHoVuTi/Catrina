@@ -239,7 +239,7 @@ isSubtype a b = anyIsRight
          then a `isSubtype` (sc Map.! t)
          else quit TypeNotFound
 
-anyIsRight :: [CheckerM ()] -> CheckerM ()
+anyIsRight :: HasCallStack => [CheckerM ()] -> CheckerM ()
 anyIsRight x = do
   st <- get
   x
@@ -419,6 +419,7 @@ foldBottomType = dealWithInjections >=> cataA go
 
       pure $ Composition [a, f] `Arrow` Composition [b, f]
 
+    go (IdentifierF "external") = Arrow <$> grabPlaceholder <*> grabPlaceholder
     go (IdentifierF t) = do
       typeScope <- get <&> typeScope
       case t `Map.lookup` typeScope of
