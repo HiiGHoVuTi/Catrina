@@ -335,7 +335,7 @@ foldBottomType = dealWithInjections >=> cataA go
       f <- f' ; g <- g'
       i <- grabPlaceholder
       b <- grabPlaceholder ; c <- grabPlaceholder
-      f `isSubtype` (i `Arrow` (i `Arrow` b))
+      f `isSubtype` (i `Arrow` b)
       g `isSubtype` (i `Arrow` (b `Arrow` c))
       pure $ i `Arrow` c
 

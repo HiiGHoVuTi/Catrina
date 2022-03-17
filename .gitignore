@@ -3,3 +3,6 @@ samples
 fakelib
 fakelib/**
 result
+
+js-src
+js-dist

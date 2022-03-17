@@ -60,6 +60,8 @@ executable rina
                     , Interpreter.Declaration
                     , Interpreter.Program
                     , Interpreter.PrettyShow
+                    --
+                    , Javascript.Generate
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -77,6 +79,7 @@ executable rina
                     , microlens
                     , generic-lens
                     , recursion-schemes
+                    , directory
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options:      -Wall
