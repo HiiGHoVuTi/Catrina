@@ -35,10 +35,40 @@ generateDecl ObjectDeclaration{} = ""
 generateDecl (ArrowDeclaration _ _ _ (Identifier "EXTERNAL")) = ""
 generateDecl (ArrowDeclaration "Base" name _ body) 
   = "function "<> T.unpack name <>"(x) {\n"
-  <> indent (generateExpr body) <> "\n"
+  <> indent (generateExpr body)
+  <> "  return x;\n"
+  <> "}\n"
+generateDecl (ArrowDeclaration "Cat" name _ body) 
+  = "function fmap_" <> T.unpack name <> "(f, x){\n"
+  <> indent (para generateFunct body)
   <> "  return x;\n"
   <> "}\n"
 generateDecl _ = ""
+
+generateFunct :: ExprF (Expr, String) -> String
+generateFunct UnitF = "x = {};\n"
+generateFunct (CompositionF xs) = foldl (<>) "" (map snd xs)
+generateFunct (IdentifierF t) = "x = fmap_" <> T.unpack t <> "(f, x);\n"
+generateFunct (ConeF m) 
+  = "x = {\n" <> indent
+    ( concatMap snd $ Map.toList $ flip Map.mapWithKey m $ \t s ->
+      T.unpack t <> ": (function(x){\n" 
+      <> indent (case snd s of
+                   "" -> "x = f(x);\n"
+                   re -> re)
+      <> "  return x;\n})(x." <> T.unpack t <> "),\n"
+    )
+  <> "};\n"
+generateFunct (CoconeF m) = 
+  "x = (function ([a, x]) {\n" <> indent 
+  ( concatMap snd $ Map.toList $ flip Map.mapWithKey m $ \t s ->
+    "if (a === \"" <> T.unpack t <> "\") {\n" 
+      <> indent (snd s) 
+      <> "}\n"
+  )
+  <> "  return [a, x];\n})(x);\n"
+
+generateFunct _ = undefined
 
 generateExpr :: Expr -> String
 generateExpr = para go
@@ -57,8 +87,7 @@ generateExpr = para go
     go (CharLiteralF c) = "x = " <> pure c <> ";\n"
     go (IntLiteralF i) = "x = " <> show i <> ";\n"
     go (FloatLiteralF x) = "x = " <> show x <> ";\n"
-    -- FIXME(Maxime): strings are totally broken
-    go (StringLiteralF s) = "x = \"" <> s <> "\";\n"
+    go (StringLiteralF s) = "x = toRinaString(\"" <> s <> "\");\n"
     go (UnaryExpressionF (OtherOp "`") r)
       =  "x = (function (x){\n"
       <> indent (snd r) 
@@ -83,20 +112,31 @@ generateExpr = para go
     go (ConePropertyF t) = "x = x." <> T.unpack t <> ";\n"
     go (CoconeF m) = "x = (function ([a, x]) {\n" <> indent 
       ( concatMap snd $ Map.toList $ flip Map.mapWithKey m $ \t s ->
-        "if (a == \"" <> T.unpack t <> "\") {\n" <> indent (snd s) <> "}\n"
+        "if (a === \"" <> T.unpack t <> "\") {\n" <> indent (snd s) <> "}\n"
       )
       <> "  return x;\n})(x);\n"
     go (CoconeConstructorF t) = "x = [\"" <> T.unpack t <> "\", x];\n"
-    go (ConeAnalysisF ts) = undefined
-    --FIXME
+    go (ConeAnalysisF []) = ""
+    go (ConeAnalysisF (t:ts)) = "x = (function(x){\n" <> indent
+        (  "let [a, y] = x." <> T.unpack t <> ";\n"
+        <> "x = {...x, " <> T.unpack t <> ": (function(x){\n"
+        <> indent (generateExpr (ConeAnalysis ts))
+        <> "  return x;\n)(x)};\n"
+        )
+      <> "  return [a, x];\n})(x);\n"
+    go (FunctorApplicationF (Identifier t, _) (_, f))
+      =  "function _mappedF_(x){\n" <> indent f <> "  return x;\n}\n"
+      <> "x = fmap_" <> T.unpack t <> "(_mappedF_(x), x);\n"
     go (FunctorApplicationF _ _) = undefined
     go (BuiltInF _) = undefined
     --go _ = ""
 
 finishBinop :: String -> String
-finishBinop "<!=" = "x = lhs(x) < rhs(x);\n"
-finishBinop ">!=" = "x = lhs(x) > rhs(x);\n"
-finishBinop "==" = "x = lhs(x) === rhs(x);\n"
+finishBinop ">=" = "x = lhs(x) >= rhs(x) ? ['true', {}] : ['false', {}];\n"
+finishBinop "<=" = "x = lhs(x) <= rhs(x) ? ['true', {}] : ['false', {}];\n"
+finishBinop "<!=" = "x = lhs(x) < rhs(x) ? ['true', {}] : ['false', {}];\n"
+finishBinop ">!=" = "x = lhs(x) > rhs(x) ? ['true', {}] : ['false', {}];\n"
+finishBinop "==" = "x = lhs(x) === rhs(x) ? ['true', {}] : ['false', {}];\n"
 finishBinop "$" = "x = lhs(x)(rhs(x));\n"
 finishBinop ">>>" = "x = rhs(x)(lhs(x));\n"
 finishBinop ":," = "x = [\"cons\", { head: lhs(x), tail: rhs(x) }];\n"

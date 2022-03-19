@@ -13,8 +13,8 @@ data Declaration
   | ObjectDeclaration Text Text Expr
   deriving (Show)
   
-arrow :: Parser Declaration
-arrow = do
+arrow' :: Parser Declaration
+arrow' = do
   reserved lexer "ar"
   cat <- identifier lexer
   name <- identifier lexer
@@ -22,6 +22,15 @@ arrow = do
   type' <- expr
   reservedOp lexer "="
   ArrowDeclaration (pack cat) (pack name) type' <$> expr
+
+arrowBase :: Parser Declaration
+arrowBase = do
+  reserved lexer "ar"
+  name <- identifier lexer
+  reservedOp lexer ":"
+  type' <- expr
+  reservedOp lexer "="
+  ArrowDeclaration (pack "Base") (pack name) type' <$> expr
 
 object :: Parser Declaration
 object = do
@@ -32,7 +41,7 @@ object = do
   ObjectDeclaration (pack cat) (pack name) <$> expr
 
 declaration :: Parser Declaration
-declaration  = arrow
+declaration  = (try arrowBase <|> arrow')
            <|> object
            <?> "declaration"
 

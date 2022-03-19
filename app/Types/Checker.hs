@@ -411,6 +411,12 @@ foldBottomType = dealWithInjections >=> cataA go
 
       pure $ input `Arrow` output
 
+    -- TODO
+    go (ConeAnalysisF ts) = do
+      -- flip (`foldl` grabPlaceholder) ts $ \e t -> do
+      --  undefined
+      grabPlaceholder
+
     go (FunctorApplicationF f' m') = do
       f <- f' ; m <- m'
 
