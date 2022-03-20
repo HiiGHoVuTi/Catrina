@@ -18,14 +18,14 @@ generateJs Program
   { programHeader = h
   , imports = i
   , programDeclarations = d
-  } = pTraceShowId $ 
+  } = 
     foldWithDefault ((<>) . (<> "\n")) ""
       [ "import '" <> T.unpack name <> "'" | name <- h]
     <> "\n\n"
     <> foldWithDefault ((<>) . (<> "\n")) ""
       (map generateDecl d)
     <> "\n\n"
-    <> ( "module.exports = { "
+    <> ( "export { "
       <> foldWithDefault ((<>) . (<> ", ")) "" (map T.unpack i)
       <> " }"
        )

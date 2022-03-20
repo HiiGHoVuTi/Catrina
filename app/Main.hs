@@ -79,7 +79,7 @@ loadProgram path = do
       loadDeps :: Program -> IO (Either CatrinaError Program)
       loadDeps (Program paths exp' decls)
         = fmap (fmap (combinePrograms.(Program[]exp' decls:)) . sequence) 
-        $ forM paths $ (fmap.fmap) snd . loadProgram . unpack . (<> ".rina")
+        $ forM (filter (not.isPrefixOf "ffi") paths) $ (fmap.fmap) snd . loadProgram . unpack . (<> ".rina")
 
 doTheThing Options {optCommand = InterpretCommand{..}} =
   loadProgram interpretedFilename >>= \case
@@ -142,15 +142,17 @@ doTheThing Options {optCommand = BuildCommand t e}
 
   where
     tryCreateDirectory :: String -> IO ()
-    tryCreateDirectory path = do
+    tryCreateDirectory !path = do
       isDir <- doesDirectoryExist path
       unless isDir $ createDirectory path
 
     genJsFile :: String -> String -> IO ()
     genJsFile newp strInput = do
       let Right parsed = parse program "" (pack strInput)
-          path = (<>"js") $ reverse $ dropWhile (/='.') $ reverse newp
-      writeFile path (generateJs parsed)
+          path = (<>"mjs") $ reverse $ dropWhile (/='.') $ reverse newp
+      if "ffi/" `isSuffixOf` pack (reverse $  dropWhile (/='/') $ reverse newp)
+         then writeFile path strInput
+         else writeFile path (generateJs parsed)
 
 traverseTree :: (String -> IO ()) -> (String -> String -> IO ()) -> String -> IO ()
 traverseTree fdir ffile path = do
@@ -159,7 +161,7 @@ traverseTree fdir ffile path = do
     let path' = path <> "/" <> ext
     isDir <- doesDirectoryExist path'
     if isDir
-       then fdir  path  >> traverseTree fdir ffile ext
+       then fdir  path'  >> traverseTree fdir ffile ext
        else ffile path' =<< readFile path'
 
 main :: IO ()
