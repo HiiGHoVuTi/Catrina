@@ -20,7 +20,9 @@ generateJs Program
   , programDeclarations = d
   } = 
     foldWithDefault ((<>) . (<> "\n")) ""
-      [ "import '" <> T.unpack name <> "'" | name <- h]
+      -- [ "import './" <> T.unpack name <> ".mjs'" | name <- h]
+
+    [ "import * as X from './" <> T.unpack name <> ".mjs'; Object.entries(X).forEach(([name, exported]) => global[name] = exported);" | name <- h ]
     <> "\n\n"
     <> foldWithDefault ((<>) . (<> "\n")) ""
       (map generateDecl d)
@@ -38,6 +40,7 @@ generateDecl (ArrowDeclaration "Base" name _ body)
   <> indent (generateExpr body)
   <> "  return x;\n"
   <> "}\n"
+  <> (if name == "main" then "main();\n" else "")
 generateDecl (ArrowDeclaration "Cat" name _ body) 
   = "function fmap_" <> T.unpack name <> "(f, x){\n"
   <> indent (para generateFunct body)
