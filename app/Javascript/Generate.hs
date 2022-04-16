@@ -71,7 +71,7 @@ generateFunct (CoconeF m) =
   )
   <> "  return [a, x];\n})(x);\n"
 
-generateFunct _ = undefined
+generateFunct _ = ""
 
 generateExpr :: Expr -> String
 generateExpr = para go
@@ -124,7 +124,7 @@ generateExpr = para go
         (  "let [a, y] = x." <> T.unpack t <> ";\n"
         <> "x = {...x, " <> T.unpack t <> ": (function(x){\n"
         <> indent (generateExpr (ConeAnalysis ts))
-        <> "  return x;\n)(x)};\n"
+        <> "  return x;\n})(x)};\n"
         )
       <> "  return [a, x];\n})(x);\n"
     go (FunctorApplicationF (Identifier t, _) (_, f))

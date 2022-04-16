@@ -9,6 +9,7 @@ import qualified Control.Monad.State.Lazy as CMSL
 import Control.Monad.Trans.State.Lazy
 import Data.Either
 import Data.Foldable
+import Data.Function
 import Data.Functor.Foldable
 import Data.Functor
 import Data.Generics.Product
@@ -26,13 +27,20 @@ import Debug.Pretty.Simple
 import GHC.Stack
 
 data Context = Context
-  { typeScope         :: Map.Map T.Text Expr
+  { typeScope         :: !(Map.Map T.Text Expr)
   , originalScope     :: Context
   , surtypesMap       :: Map.Map Expr (Set.Set Expr)
   , strictSubtypesMap :: Map.Map Expr (Set.Set Expr)
   , uids              :: [T.Text]
   }
   deriving Generic
+
+pattern External :: Expr
+pattern External <- 
+  Composition [ Composition 
+    [ BinaryExpression (OtherOp ":,") (StringLiteral _) _
+    , _
+    ], Identifier _]
 
 type CheckerM = StateT Context (Either CatrinaError)
 
@@ -76,20 +84,29 @@ grabPlaceholder = do
   modify $ field @"strictSubtypesMap" %~ Map.insert placeholder Set.empty
   pure placeholder
 
+isAdHoc :: Expr -> Bool
+isAdHoc (Identifier t) | T.toLower t == t && not ("*" `T.isPrefixOf` t)
+  = True
+isAdHoc _ = False
+
 compose2 :: Map.Map T.Text Expr -> Expr -> Expr -> Expr
 compose2 scope t = cata go
   where
+      prims = ["Char", "Int", "Float"] 
     -- NOTE(Maxime): incomplete ?
-      {-
-      go (CompositionF ((ConeProperty z):zs)) = 
-        let
-          Cone m = t
-          z'     = m Map.! z
-        in Composition (z':zs)
-      -}
-      go (CompositionF zs) = Composition (t:zs)
+      go (CompositionF []) = t
+      go (CompositionF (Identifier z:zs))
+        | z `elem` prims = Composition $ Identifier z : zs
+        | otherwise      = Composition (t:zs)
       go (IdentifierF f')
-        | f' `Map.member` scope = Composition [t, scope Map.! f']
+        | f' `elem` prims = Identifier f'
+        | f' `Map.member` scope = Composition [t, case scope Map.! f' of
+                                                    External -> Identifier f'
+                                                    x -> x
+                                              ]
+      go (ConePropertyF n) = let
+          Cone m = t
+        in m Map.! n
       go x = embed x
 
 
@@ -107,7 +124,7 @@ isSubtype (Composition []) (t1 `Arrow` t2) = t2 `isSubtype` t1
 -- const
 isSubtype (Identifier "const") b = do
   t <- grabPlaceholder ; a <- grabPlaceholder
-  b `isSubtype` (t `Arrow` (a `Arrow` t))
+  (t `Arrow` (a `Arrow` t)) `isSubtype` b
 isSubtype (Identifier "fmap") b = do
   x <- grabPlaceholder ; y <- grabPlaceholder
   f <- grabPlaceholder
@@ -118,19 +135,23 @@ isSubtype (Identifier "fmap") b = do
       , ("_3", x `Arrow` y)
       ]
   b `isSubtype` (c `Arrow` Composition [y, f])
-isSubtype (Identifier "cata") b = do
+isSubtype (Identifier "para") b = do
   pure () -- FIXME
 
 isSubtype a (Composition [b]) = a `isSubtype` b -- NOTE(Maxime): shouldn't happen
 
--- polymorphic case
-isSubtype a@(Identifier ta) b@(Identifier tb)
-  |  T.toLower ta == ta
-  && T.toLower tb == tb = do
+-- ad-hoc polymorphism case
+isSubtype a b
+  | isAdHoc a && isAdHoc b = do
     subs <- checkSubtypeMap a
     case subs of
       Nothing -> quit TypeNotFound
       Just sb -> traverse_ (`isSubtype` b) sb
+
+    surs <- checkSurtypeMap b
+    case surs of
+      Nothing -> quit TypeNotFound
+      Just sr -> traverse_ (a `isSubtype`) sr
 
     originals <- get <&> surtypesMap.originalScope
     when (a `Map.notMember` originals) $ 
@@ -138,8 +159,8 @@ isSubtype a@(Identifier ta) b@(Identifier tb)
     when (b `Map.notMember` originals) $ 
       modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) b
 
-isSubtype i@(Identifier t) b
-  | T.toLower t == t = do
+isSubtype i b
+  | isAdHoc i = do
     subs <- checkSubtypeMap i
     case subs of
       Nothing -> quit TypeNotFound
@@ -150,8 +171,8 @@ isSubtype i@(Identifier t) b
       modify $ field @"surtypesMap"       %~ Map.update (Just. Set.insert b) i
     modify   $ field @"strictSubtypesMap" %~ Map.alter (alterInsert i) b
 
-isSubtype a i@(Identifier t)
-  | T.toLower t == t = do
+isSubtype a i 
+  | isAdHoc i = do
     surs <- checkSurtypeMap i
     case surs of
       Nothing -> quit TypeNotFound -- cannot happen
@@ -161,6 +182,12 @@ isSubtype a i@(Identifier t)
     modify   $ field @"surtypesMap"       %~ Map.alter (alterInsert i) a
     when (i `Map.notMember` originals) $
       modify $ field @"strictSubtypesMap" %~ Map.alter (alterInsert a) i
+
+-- parametric polymorphism case
+isSubtype _ (Identifier tb)
+  | "*" `T.isPrefixOf` tb = quit TypeNotMatching
+isSubtype (Identifier ta) _
+  | "*" `T.isPrefixOf` ta = pure ()
 
 isSubtype (Composition as) (Composition bs) = zipWithM_ isSubtype as bs
 isSubtype a (Composition xs) = do
@@ -184,7 +211,7 @@ isSubtype (Cocone m) (Cocone m') = do
      then pure ()
      else quit TypeNotMatching
 
-  sequence_ $ Map.intersectionWith isSubtype m' m
+  sequence_ $ Map.intersectionWith isSubtype m m'
 
 -- functors
 isSubtype (FunctorApplication t  a)
@@ -270,16 +297,18 @@ foldTopType = cataA go
     go (IdentifierF name) = do
       scope <- get <&> typeScope
       pure $ if name `Map.member` scope
-         then scope Map.! name
+         then case scope Map.! name of
+                External -> Identifier name
+                x -> x
          else Identifier name
     go other              = embed <$> sequence other
 
 
 -- TODO(Maxime): refactor as para ?
 foldBottomType :: Expr -> CheckerM Expr
-foldBottomType = dealWithInjections >=> cataA go
+-- FIXME
+foldBottomType = dealWithInjections >=> dealWithInjections >=> cataA go
   where
-    -- FIXME
     dealWithInjections :: Expr -> CheckerM Expr
     dealWithInjections = fmap embed . inj' . project
 
@@ -300,7 +329,7 @@ foldBottomType = dealWithInjections >=> cataA go
     go (CompositionF thingies) = do
       -- Cannot be empty
       anyT <- grabPlaceholder
-      rest <- sequence thingies
+      rest <- sequence thingies <&> filter (/= Identifier "id")
 
       flip (`foldM` (anyT `Arrow` anyT)) rest $
         \f g -> do
@@ -442,13 +471,17 @@ makeScope p = do
     -- NOTE(Maxime): just a patch
     ArrowDeclaration "Cat" name _ val' -> do
       type' <- foldTopType val'
-      addToScope name type'
+      case val' of
+        External -> pure()
+        _ -> addToScope name type'
     ArrowDeclaration  _ name val' _ -> do
       type' <- foldTopType val'
       addToScope name type'
     ObjectDeclaration _ name val'   -> do
       type' <- foldTopType val'
-      addToScope name type'
+      case val' of
+        External -> pure()
+        _ -> addToScope name type'
   sc <- get
   modify $ field @"originalScope" .~ sc
   where
@@ -483,6 +516,7 @@ renamePhase (Program h i decls) = Program h i <$> traverse renameDecl decls
               -- if not already in the map grab a new uid
               Nothing -> do
                 Identifier uid <- CMSL.lift grabPlaceholder
+                -- parameter type marker
                 modify $ Map.insert t uid
                 pure   $ Identifier uid
               
@@ -497,20 +531,16 @@ checkStatements p = do
     ObjectDeclaration{} -> pure ()
     
     ArrowDeclaration _ name _ val' -> do
-      let top = typeScope st Map.! name
+      let top = parametrise $ typeScope st Map.! name
       bottom <- foldBottomType val'
       bottom `isSubtype` top
       resetScope
-      -- TODO(Maxime): clear out all polymorphic thingies
-        {- the following code removes too much, including signatures from
-            top types
-      modify $ field @"surtypesMap"       %~ clear
-      modify $ field @"strictSubtypesMap" %~ clear
 
   where
-    clear = Map.filterWithKey (const.isn'tPolymorphic) 
-          . Map.map (Set.filter isn'tPolymorphic)
-        -}
+    parametrise :: Expr -> Expr
+    parametrise = cata $ \case
+      IdentifierF t | T.toLower t == t -> Identifier ("*" <> t)
+      x -> embed x
 
 typecheckProgram' :: Program -> CheckerM ()
 typecheckProgram' p = do
@@ -538,7 +568,6 @@ typecheckProgram p =
       , ("strconcat", 
         Composition [Identifier "String", Identifier "List"]
         `Arrow` Identifier "String")
-      , ("id", Composition [])
       ]
 
 

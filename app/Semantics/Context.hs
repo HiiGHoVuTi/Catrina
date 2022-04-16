@@ -24,7 +24,7 @@ baseIdentifiers =
   -- Types
   , "String", "Int", "Float", "Char", "Bool"
   -- Built-Ins
-  , "id", "const", "fmap", "cata"
+  , "id", "const", "fmap", "para"
   , "shell", "stdout", "show", "strconcat"
   ]
 
