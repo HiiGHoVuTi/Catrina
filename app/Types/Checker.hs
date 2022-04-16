@@ -266,8 +266,20 @@ isSubtype a b = anyIsRight
          then a `isSubtype` (sc Map.! t)
          else quit TypeNotFound
 
+anyUnitTest :: [Either CatrinaError ()] -> Either CatrinaError ()
+anyUnitTest = cata $ \case
+  Nil -> Left TypeNotFound
+  Cons (Left  _) xs -> xs
+  Cons (Right _) __ -> Right ()
+
 anyIsRight :: HasCallStack => [CheckerM ()] -> CheckerM ()
-anyIsRight x = do
+anyIsRight = lift' anyUnitTest
+  where
+    lift' :: Monad m => ([m a] -> m a) -> [StateT s m a] -> StateT s m a
+    lift' f ss = StateT $ \s -> fmap (,s) $ f $ fmap (`evalStateT` s) ss
+
+
+{- do -- undefined anyUnitTest 
   st <- get
   x
     & filter (isRight . flip evalStateT st)
@@ -275,7 +287,7 @@ anyIsRight x = do
     & \case
       [] -> quit TypeNotMatching
       _  -> pure ()
-
+-}
 
 anyIsSubtype :: HasCallStack => Set.Set Expr -> Expr -> CheckerM ()
 anyIsSubtype (Set.toList -> []) _  = quit TypeNotFound
